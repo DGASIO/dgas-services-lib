@@ -1,13 +1,19 @@
 import time
 from asyncpg.handlers import BaseHandler
 from asyncpg.errors import JSONHTTPError
-from dgasio.utils import flatten_payload, data_decoder, parse_int
+from dgasio.utils import validate_signature, validate_address, data_decoder, parse_int, flatten_payload
 from dgasio.crypto import ecrecover
+from dgasio.request import generate_request_signature_data_string
 
 # used to validate the timestamp in requests. if the difference between
 # the timestamp and the current time is greater than this the reuqest
 # is rejected
 TIMESTAMP_EXPIRY = 15
+
+# TOKEN auth header variable names
+TOKEN_TIMESTAMP_HEADER = "Token-Timestamp"
+TOKEN_SIGNATURE_HEADER = "Token-Signature"
+TOKEN_ID_ADDRESS_HEADER = "Token-ID-Address"
 
 class GenerateTimestamp(BaseHandler):
 
@@ -16,6 +22,7 @@ class GenerateTimestamp(BaseHandler):
 
 class RequestVerificationMixin:
 
+    # DEPRECIATED
     def verify_payload(self, expected_address=None, signature=None, payload=None):
 
         """Verifies that the signature and the payload match the expected address
@@ -62,3 +69,57 @@ class RequestVerificationMixin:
         if abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
             raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
                                                        'message': 'The difference between the timestamp and the current time is too large'}]})
+
+    def verify_request(self):
+        """Verifies that the signature and the payload match the expected address
+        raising a JSONHTTPError (400) if something is wrong with the request"""
+
+        if TOKEN_ID_ADDRESS_HEADER in self.request.headers:
+            expected_address = self.request.headers[TOKEN_ID_ADDRESS_HEADER]
+        else:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-ID-Address'}]})
+
+        if TOKEN_SIGNATURE_HEADER in self.request.headers:
+            signature = self.request.headers[TOKEN_SIGNATURE_HEADER]
+        else:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-Signature'}]})
+
+        if TOKEN_TIMESTAMP_HEADER in self.request.headers:
+            timestamp = self.request.headers[TOKEN_TIMESTAMP_HEADER]
+        else:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-Timestamp'}]})
+
+        timestamp = parse_int(timestamp)
+        if timestamp is None:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                       'message': 'Given Token-Timestamp is invalid'}]})
+
+        if not validate_address(expected_address):
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_id_address', 'message': 'Invalid Token-ID-Address'}]})
+
+        if not validate_signature(signature):
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Token-Signature'}]})
+
+        try:
+            signature = data_decoder(signature)
+        except Exception:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Token-Signature'}]})
+
+        verb = self.request.method
+        uri = self.request.path
+
+        if self.request.body:
+            datahash = self.request.body
+        else:
+            datahash = ""
+
+        data_string = generate_request_signature_data_string(verb, uri, timestamp, datahash)
+
+        if not ecrecover(data_string, signature, expected_address):
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Token-Signature'}]})
+
+        if abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                       'message': 'The difference between the timestamp and the current time is too large'}]})
+
+        return expected_address
