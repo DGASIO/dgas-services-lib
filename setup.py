@@ -10,7 +10,11 @@ setup(
     description='',
     long_description=open('README.md').read(),
     install_requires=[
-        'asyncpg'
+        'asyncpg==0.0.1',
+        'dgasio==0.0.1'
     ],
-    dependency_links=['http://raneeli.com:dgasio/dgasio/asyncpg/tarball/master#egg=asyncpg']
+    dependency_links=[
+        'http://raneeli.com:dgasio/dgasio/asyncpg/tarball/master#egg=asyncpg-0.0.1',
+        'http://raneeli.com:dgasio/dgasio/dgasbrowser-python/tarball/master#egg=dgasio-0.0.1'
+    ]
 )
