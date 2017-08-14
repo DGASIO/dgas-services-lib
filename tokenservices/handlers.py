@@ -51,8 +51,14 @@ class RequestVerificationMixin:
 
         # check timestamp
         if 'timestamp' not in payload:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp', 'message': 'The difference between the timestamp and the current time is too large'}]})
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                       'message': 'Missing timestamp in payload'}]})
 
         timestamp = parse_int(payload['timestamp'])
-        if timestamp is None or abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Signature'}]})
+        if timestamp is None:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                       'message': 'Given timestamp is invalid'}]})
+
+        if abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                       'message': 'The difference between the timestamp and the current time is too large'}]})
