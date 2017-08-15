@@ -15,6 +15,10 @@ TOKEN_TIMESTAMP_HEADER = "Token-Timestamp"
 TOKEN_SIGNATURE_HEADER = "Token-Signature"
 TOKEN_ID_ADDRESS_HEADER = "Token-ID-Address"
 
+TOKEN_TIMESTAMP_QUERY_ARG = "tokenTimestamp"
+TOKEN_SIGNATURE_QUERY_ARG = "tokenSignature"
+TOKEN_ID_ADDRESS_QUERY_ARG = "tokenIdAddress"
+
 class GenerateTimestamp(BaseHandler):
 
     def get(self):
@@ -76,16 +80,22 @@ class RequestVerificationMixin:
 
         if TOKEN_ID_ADDRESS_HEADER in self.request.headers:
             expected_address = self.request.headers[TOKEN_ID_ADDRESS_HEADER]
+        elif self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG, None):
+            expected_address = self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG)
         else:
             raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-ID-Address'}]})
 
         if TOKEN_SIGNATURE_HEADER in self.request.headers:
             signature = self.request.headers[TOKEN_SIGNATURE_HEADER]
+        elif self.get_argument(TOKEN_SIGNATURE_QUERY_ARG, None):
+            signature = self.get_argument(TOKEN_SIGNATURE_QUERY_ARG)
         else:
             raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-Signature'}]})
 
         if TOKEN_TIMESTAMP_HEADER in self.request.headers:
             timestamp = self.request.headers[TOKEN_TIMESTAMP_HEADER]
+        elif self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG, None):
+            timestamp = self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG)
         else:
             raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Token-Timestamp'}]})
 
