@@ -1,0 +1,59 @@
+FORMAT: 1A
+
+# Token Service General concepts
+
+## Generating signatures
+
+When making any authenticated requests (i.e. requests that require the user prove ownership of the associated ethereum address) the request must be signed.
+
+Signatures are generated in the same way as Ethereum transaction signatures are.
+
+The source data for the signature is a string containing the request verb (e.g. `GET`, `POST`, etc), the path of the request (exactly as it appears in the HTTP request), a unix `timestamp` representing the current time and the base64 encoded [KECCAK-256](http://keccak.noekeon.org/) hash of the body of the request (or is left empty if the request has no body). As the body should be signed exactly as it's being sent, for string type bodies (text/*, application/json, etc...), the hash should be generated as the byte string encoded with the `charset` value set in the `Content-Type` header of the request.
+
+Each part is separated by a line feed (`\n`) and the string is constructed as such:
+
+```
+{VERB}\n{PATH}\n{TIMESTAMP}\n{HASH}
+```
+
+e.g. for a `POST` to `/v1/user` with the body `{"custom": {"name": "Mr Tester", "avatar": "https://s3.amazonaws.com/testuser/profile.jpg"}}`.
+
+```
+POST\n/v1/user\n1480078657\nto5m3Kmk6z9OZI/Kb+/yabcfDKl47nSuspAtxnFaQsA=
+```
+
+or for a request with no body:
+
+```
+GET\n/v1/user\n1480078657\n
+```
+
+If the body contains binary data, the hash should be made of the original data.
+
+This string is then [Keccak-256](http://keccak.noekeon.org/) and signed with the owners private key using recoverable ECDSA. Finally the resulting signature is serialised and converted to a hex string. *TODO*: find/write more detailed documentation for these things from the ethereum world.
+
+The request then needs the signature, the timestamp and the signer's ethereum address as http headers or query arguments
+
+|                  | HTTP header variable name | Query argument name |
+|------------------|---------------------------|---------------------|
+| timestamp        | Token-Timestamp           | timestamp           |
+| signature        | Token-Signature           | signature           |
+| signer's address | Token-ID-Address          | idAddress           |
+
+e.g.
+
+```
+POST /v1/user HTTP/1.1
+Host: token-id-service.herokuapp.com
+Content-Type: application/json
+Content-Length: 92
+Token-Timestamp: 1480078657
+Token-Signature: 0xcffb17822a12e6077db1b529e5bcfd666dfa4c057dd97435064dc04d9a06b4cc23c6eb1c2f4721131ff2996b8c20e586008c1417c1e75b85a52ba846554808dc00
+Token-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
+```
+
+```
+GET https://token-id-service.herokuapp.com/v1/user?timestamp=1480078657&signature=0xf656108e5ea4ada46c3ba4c4dc33055e7e375e2e59e8e362811bf8519757c81117c92f15fbc4469f99d2780d5c798040ada9694c9af36f3340dfb2f5cd6d56f301&address=0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
+```
+
+If the given `timestamp` is too far away from the current time (within a few seconds) the request will be rejected.
