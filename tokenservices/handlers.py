@@ -123,3 +123,20 @@ class RequestVerificationMixin:
                                                        'message': 'The difference between the timestamp and the current time is too large'}]})
 
         return expected_address
+
+    def is_request_signed(self, raise_if_partial=True):
+        """Returns true if the request contains the headers needed to be considered signed.
+        Designed for use in situations where a signature may be optional.
+
+        if `raise_if_partial` is true (default) this will raise a HTTPError if the
+        request contains only some of the headers needed for the signature
+        verification, otherwise False will be returned"""
+
+        count_headers = sum(1 if x in self.request.headers else 0 for x in [TOKEN_ID_ADDRESS_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_TIMESTAMP_HEADER])
+
+        if count_headers == 3:
+            return True
+        if count_headers == 0:
+            return False
+        if raise_if_partial:
+            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing headers required for authentication'}]})
