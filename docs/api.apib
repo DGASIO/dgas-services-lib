@@ -36,9 +36,9 @@ The request then needs the signature, the timestamp and the signer's ethereum ad
 
 |                  | HTTP header variable name | Query argument name |
 |------------------|---------------------------|---------------------|
-| timestamp        | Token-Timestamp           | timestamp           |
-| signature        | Token-Signature           | signature           |
-| signer's address | Token-ID-Address          | idAddress           |
+| timestamp        | Token-Timestamp           | tokenTimestamp      |
+| signature        | Token-Signature           | tokensignature      |
+| signer's address | Token-ID-Address          | tokenIdAddress      |
 
 e.g.
 
@@ -53,7 +53,7 @@ Token-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
 ```
 
 ```
-GET https://token-id-service.herokuapp.com/v1/user?timestamp=1480078657&signature=0xf656108e5ea4ada46c3ba4c4dc33055e7e375e2e59e8e362811bf8519757c81117c92f15fbc4469f99d2780d5c798040ada9694c9af36f3340dfb2f5cd6d56f301&address=0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
+GET https://token-id-service.herokuapp.com/v1/user?tokenTimestamp=1480078657&tokenSignature=0xf656108e5ea4ada46c3ba4c4dc33055e7e375e2e59e8e362811bf8519757c81117c92f15fbc4469f99d2780d5c798040ada9694c9af36f3340dfb2f5cd6d56f301&tokenIdAddress=0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
 ```
 
 If the given `timestamp` is too far away from the current time (within a few seconds) the request will be rejected.
