@@ -4,56 +4,68 @@ FORMAT: 1A
 
 ## Generating signatures
 
-When making any authenticated requests (i.e. requests that require the user prove ownership of the associated ethereum address) the request must be signed.
+### Creating the payload for signing
 
-Signatures are generated in the same way as Ethereum transaction signatures are.
+When making any authenticated HTTP requests (i.e. requests that require the user prove ownership of the associated ethereum address) the request must be signed.
 
-The source data for the signature is a string containing the request verb (e.g. `GET`, `POST`, etc), the path of the request (exactly as it appears in the HTTP request), a unix `timestamp` representing the current time and the base64 encoded [KECCAK-256](http://keccak.noekeon.org/) hash of the body of the request (or is left empty if the request has no body). As the body should be signed exactly as it's being sent, for string type bodies (text/*, application/json, etc...), the hash should be generated as the byte string encoded with the `charset` value set in the `Content-Type` header of the request.
+The following can be used for generating a valid signature:
 
-Each part is separated by a line feed (`\n`) and the string is constructed as such:
+1) If your request has no body skip to step 4.
+2) Take the body of your request and [KECCAK-256](http://keccak.noekeon.org/) encode it.
+3) Base64 encode the result of Step 1 as a string.
+4) Get the request verb of the request (e.g. `GET`, `POST`, etc) as a string.
+5) Get the path of the request as a string.
+6) Get a unix timestamp representing the current time as a string.
+7) Take the results of steps 3-6 and concatenate them as follows:`{VERB}\n{PATH}\n{TIMESTAMP}\n{HASH}`
 
-```
-{VERB}\n{PATH}\n{TIMESTAMP}\n{HASH}
-```
+**N.B.** If the request has no body `{HASH}` will be an empty string.
 
-e.g. for a `POST` to `/v1/user` with the body `{"custom": {"name": "Mr Tester", "avatar": "https://s3.amazonaws.com/testuser/profile.jpg"}}`.
+**N.B.** The body should be hashed exactly as it's being sent, for string type bodies (text/*, application/json, etc...), the hash should be generated as the byte string encoded with the `charset` value set in the `Content-Type` header of the request.
 
-```
-POST\n/v1/user\n1480078657\nto5m3Kmk6z9OZI/Kb+/yabcfDKl47nSuspAtxnFaQsA=
-```
+**N.B.** `multipart/form-data` and `application/x-www-form-urlencoded` bodies should also be hashed exactly as sent.
 
-or for a request with no body:
+#### Examples
+ - `POST` to `/v1/user` with the body:
+`{"custom": {"name": "Mr Tester", "avatar": "https://s3.amazonaws.com/testuser/profile.jpg"}}`
 
-```
-GET\n/v1/user\n1480078657\n
-```
+    Creates this payload:
+    ```
+    POST\n/v1/user\n1480078657\nto5m3Kmk6z9OZI/Kb+/yabcfDKl47nSuspAtxnFaQsA=
+    ```
 
-If the body contains binary data, the hash should be made of the original data.
+ - `GET` from `/v1/user` with no request body, creates this payload:
+    ```
+    GET\n/v1/user\n1480078657\n
+    ```
 
-This string is then [Keccak-256](http://keccak.noekeon.org/) and signed with the owners private key using recoverable ECDSA. Finally the resulting signature is serialised and converted to a hex string. *TODO*: find/write more detailed documentation for these things from the ethereum world.
+### Signing the payload
 
-The request then needs the signature, the timestamp and the signer's ethereum address as http headers or query arguments
+1) Encode the payload with [Keccak-256](http://keccak.noekeon.org/) encoding.
+2) Sign the encoded payload with a private key using recoverable ECDSA.
+3) Serialised and convert the result from step 2 to a hex string.
 
-|                  | HTTP header variable name | Query argument name |
-|------------------|---------------------------|---------------------|
-| timestamp        | Token-Timestamp           | tokenTimestamp      |
-| signature        | Token-Signature           | tokensignature      |
-| signer's address | Token-ID-Address          | tokenIdAddress      |
+*TODO*: find/write more detailed documentation for these things from the ethereum world.
 
-e.g.
+### Creating the request
+
+Now that the signature has been created the final step is to add some headers to the HTTP request.
+
+| HTTP header variable name | Description                                                               |
+|---------------------------|---------------------------------------------------------------------------|
+| Token-Timestamp           | This is the same timestamp that was used when creating the payload.       |
+| Token-Signature           | The signature that we created                                             |
+| Token-ID-Address          | The address of the private key that was used to create the signature      |
+
+#### Example
 
 ```
 POST /v1/user HTTP/1.1
-Host: token-id-service.herokuapp.com
-Content-Type: application/json
-Content-Length: 92
-Token-Timestamp: 1480078657
-Token-Signature: 0xcffb17822a12e6077db1b529e5bcfd666dfa4c057dd97435064dc04d9a06b4cc23c6eb1c2f4721131ff2996b8c20e586008c1417c1e75b85a52ba846554808dc00
-Token-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
+    Host: token-id-service.herokuapp.com
+    Content-Type: application/json
+    Content-Length: 92
+    Token-Timestamp: 1480078657
+    Token-Signature: 0xcffb17822a12e6077db1b529e5bcfd666dfa4c057dd97435064dc04d9a06b4cc23c6eb1c2f4721131ff2996b8c20e586008c1417c1e75b85a52ba846554808dc00
+    Token-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
 ```
 
-```
-GET https://token-id-service.herokuapp.com/v1/user?tokenTimestamp=1480078657&tokenSignature=0xf656108e5ea4ada46c3ba4c4dc33055e7e375e2e59e8e362811bf8519757c81117c92f15fbc4469f99d2780d5c798040ada9694c9af36f3340dfb2f5cd6d56f301&tokenIdAddress=0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
-```
-
-If the given `timestamp` is too far away from the current time (within a few seconds) the request will be rejected.
+**N.B.** If the given `timestamp` is too far away from the current time (within a few seconds) the request will be rejected.
