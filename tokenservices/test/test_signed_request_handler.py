@@ -1,4 +1,7 @@
 import time
+import os
+import mimetypes
+from io import BytesIO
 from asyncpg.handlers import BaseHandler
 from tokenservices.handlers import RequestVerificationMixin
 from tokenservices.test.base import AsyncHandlerTest
@@ -15,6 +18,44 @@ TEST_ADDRESS = "0x056db290f8ba3250ca64a45d16284d04bc6f5fbf"
 def generate_query_args(*, signature, address, timestamp):
     return "tokenSignature={signature}&tokenTimestamp={timestamp}&tokenIdAddress={address}".format(
         signature=signature, address=address, timestamp=timestamp)
+
+def encode_multipart_formdata(fields, files):
+    """
+    fields is a sequence of (name, value) elements for regular form fields.
+    files is a sequence of (name, filename, value) elements for data to be
+    uploaded as files.
+    Return (content_type, body) ready for httplib.HTTP instance
+    """
+    BOUNDARY = b'----------ThIs_Is_tHe_bouNdaRY_$'
+    CRLF = b'\r\n'
+    L = BytesIO()
+    for (key, value) in fields:
+        L.write(b'--' + BOUNDARY + CRLF)
+        L.write('Content-Disposition: form-data; name="{}"'.format(key).encode('utf-8') + CRLF)
+        L.write(CRLF)
+        if not isinstance(value, bytes):
+            value = str(value).encode('utf-8')
+        L.write(value + CRLF)
+    for (key, filename, value) in files:
+        L.write(b'--' + BOUNDARY + CRLF)
+        L.write(
+            'Content-Disposition: form-data; name="{}"; filename="{}"'.format(
+                key, filename
+            ).encode('utf-8') + CRLF
+        )
+        L.write('Content-Type: {}'.format(get_content_type(filename)).encode('utf-8') + CRLF)
+        L.write(CRLF)
+        if not isinstance(value, bytes):
+            value = str(value).encode('utf-8')
+        L.write(value + CRLF)
+    L.write(b'--' + BOUNDARY + b'--' + CRLF)
+    L.write(CRLF)
+    body = L.getvalue()
+    content_type = 'multipart/form-data; boundary={}'.format(BOUNDARY.decode('utf-8'))
+    return content_type, body
+
+def get_content_type(filename):
+    return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
 class SimpleHandler(RequestVerificationMixin, BaseHandler):
 
@@ -89,3 +130,20 @@ class RequestVerificationTest(AsyncHandlerTest):
         resp = await self.fetch_signed("/", signing_key=TEST_PRIVATE_KEY, method="POST", timestamp=timestamp)
 
         self.assertResponseCodeEqual(resp, 400, resp.body)
+
+    @gen_test
+    async def test_urlencoded_data(self):
+
+        # generate random 2048 byte "file"
+        filedata = os.urandom(2048)
+
+        content_type, body = encode_multipart_formdata([], [("file", "test.bin", filedata)])
+        headers = {"Content-Type": content_type, 'content-length': str(len(body))}
+
+        timestamp = int(time.time())
+        signature = sign_request(TEST_PRIVATE_KEY, "POST", "/", timestamp, body)
+
+        resp = await self.fetch_signed("/", method="POST", body=body, headers=headers,
+                                       signature=signature, timestamp=timestamp, address=TEST_ADDRESS)
+
+        self.assertResponseCodeEqual(resp, 204)

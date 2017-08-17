@@ -20,6 +20,7 @@ setup(
         'git+ssh://git@raneeli.com:dgasio/dgasio/dgasbrowser-python.git#egg=dgasio-0.0.1'
     ],
     tests_require=[
-        'pytest'
+        'pytest',
+        'requests'
     ]
 )
