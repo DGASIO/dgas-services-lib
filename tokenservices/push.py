@@ -1,4 +1,5 @@
 import random
+import json
 import tornado.httpclient
 
 class PushServerError(Exception):
@@ -26,15 +27,11 @@ class PushServerClient:
 
         self.url = "{}{}".format(url, self.path)
 
-    async def send(self, token, payload):
+    async def send(self, token, data):
 
         # TODO: intricisies of the PushServer format
         # https://raneeli.com:dgasio/dgasio/PushServer/blob/master/src/main/java/org/whispersystems/pushserver/entities/GcmMessage.java
 
-        if "data" not in payload:
-            raise NotImplementedError("Only data packets are supported")
-
-        data = payload['data']
         if len(data) > 1 or 'message' not in data:
             raise NotImplementedError("Only data key allowed is 'message'")
 
@@ -52,6 +49,34 @@ class PushServerClient:
         resp = await self.client.fetch(self.url, method="POST",
                                        auth_username=self.username,
                                        auth_password=self.password,
+                                       raise_error=False)
+
+        if resp.code == 200:
+            return True
+        raise PushServerError(resp.body)
+
+class GCMHttpPushClient:
+
+    def __init__(self, server_key):
+
+        self.server_key = server_key
+
+    async def send(self, token, data):
+
+        if not isinstance(data, dict):
+            raise TypeError("data must be a dict")
+
+        payload = {
+            "data": data,
+            "to": token
+        }
+
+        resp = await self.client.fetch("https://gcm-http.googleapis.com/gcm/send", method="POST",
+                                       headers={
+                                           'Authorization': "key={}".format(self.server_key),
+                                           'Content-Type': 'application/json'
+                                       },
+                                       body=json.dumps(payload).encode('utf-8'),
                                        raise_error=False)
 
         if resp.code == 200:
