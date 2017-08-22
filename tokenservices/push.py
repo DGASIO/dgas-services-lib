@@ -47,6 +47,10 @@ class PushServerClient:
         }
 
         resp = await self.client.fetch(self.url, method="POST",
+                                       headers={
+                                           'Content-Type': 'application/json'
+                                       },
+                                       body=json.dumps(payload).encode('utf-8'),
                                        auth_username=self.username,
                                        auth_password=self.password,
                                        raise_error=False)
