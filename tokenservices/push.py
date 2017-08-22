@@ -60,6 +60,16 @@ class GCMHttpPushClient:
     def __init__(self, server_key):
 
         self.server_key = server_key
+        self.client = tornado.httpclient.AsyncHTTPClient()
+
+    def send_impl(self, payload):
+        return self.client.fetch("https://gcm-http.googleapis.com/gcm/send", method="POST",
+                                 headers={
+                                     'Authorization': "key={}".format(self.server_key),
+                                     'Content-Type': 'application/json'
+                                 },
+                                 body=json.dumps(payload).encode('utf-8'),
+                                 raise_error=False)
 
     async def send(self, token, data):
 
@@ -71,13 +81,7 @@ class GCMHttpPushClient:
             "to": token
         }
 
-        resp = await self.client.fetch("https://gcm-http.googleapis.com/gcm/send", method="POST",
-                                       headers={
-                                           'Authorization': "key={}".format(self.server_key),
-                                           'Content-Type': 'application/json'
-                                       },
-                                       body=json.dumps(payload).encode('utf-8'),
-                                       raise_error=False)
+        resp = await self.send_impl(payload)
 
         if resp.code == 200:
             return True
