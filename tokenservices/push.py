@@ -46,7 +46,7 @@ class PushServerClient:
             "call": False
         }
 
-        resp = await self.client.fetch(self.url, method="POST",
+        resp = await self.client.fetch(self.url, method="PUT",
                                        headers={
                                            'Content-Type': 'application/json'
                                        },
