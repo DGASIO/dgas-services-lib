@@ -27,7 +27,7 @@ class PushServerClient:
 
         self.url = "{}{}".format(url, self.path)
 
-    async def send(self, token, data):
+    async def send(self, token_id, device_token, data):
 
         # TODO: intricisies of the PushServer format
         # https://raneeli.com:dgasio/dgasio/PushServer/blob/master/src/main/java/org/whispersystems/pushserver/entities/GcmMessage.java
@@ -36,8 +36,8 @@ class PushServerClient:
             raise NotImplementedError("Only data key allowed is 'message'")
 
         payload = {
-            "gcmId": token,
-            "number": random.randint(0, 1000000000),
+            "gcmId": device_token,
+            "number": token_id,
             "message": data['message'],
             "devideId": 1,
             "receipt": False,
@@ -75,14 +75,14 @@ class GCMHttpPushClient:
                                  body=json.dumps(payload).encode('utf-8'),
                                  raise_error=False)
 
-    async def send(self, token, data):
+    async def send(self, token_id, device_token, data):
 
         if not isinstance(data, dict):
             raise TypeError("data must be a dict")
 
         payload = {
             "data": data,
-            "to": token
+            "to": device_token
         }
 
         resp = await self.send_impl(payload)
