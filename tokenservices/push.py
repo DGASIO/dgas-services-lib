@@ -1,3 +1,4 @@
+import base64
 import random
 import json
 import tornado.httpclient
@@ -45,6 +46,12 @@ class PushServerClient:
             "redphone": False,
             "call": False
         }
+
+        auth = self.username.encode('utf-8') + b":" + self.password.encode('utf-8')
+        print("curl -X PUT {} \\".format(self.url))
+        print("-H 'Authorization: Basic {}' \\".format(base64.b64encode(auth).decode('utf-8')))
+        print("-H 'Content-Type: application/json' \\")
+        print("--data '{}'".format(json.dumps(payload)))
 
         resp = await self.client.fetch(self.url, method="PUT",
                                        headers={
