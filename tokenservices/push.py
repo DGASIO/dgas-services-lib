@@ -40,7 +40,7 @@ class PushServerClient:
             "gcmId": device_token,
             "number": token_id,
             "message": data['message'],
-            "devideId": 1,
+            "deviceId": 1,
             "receipt": False,
             "notification": False,
             "redphone": False,
