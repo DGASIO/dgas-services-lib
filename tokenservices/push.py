@@ -8,27 +8,17 @@ class PushServerError(Exception):
 
 class PushServerClient:
 
-    def __init__(self, *, url, username=None, password=None, gcm=False, apn=False):
+    def __init__(self, *, url, username=None, password=None):
 
-        if (gcm is False and apn is False) or (gcm is True and apn is True):
-            raise TypeError("Requires either gcm=True or apn=True, but not both")
-
-        self.base_url = url
         self.client = tornado.httpclient.AsyncHTTPClient()
         self.username = username
         self.password = password
 
-        if gcm:
-            self.path = "/api/v1/push/gcm"
-        else:
-            self.path = "/api/v1/push/apn"
-
         while url.endswith("/"):
             url = url[:-1]
+        self.base_url = url
 
-        self.url = "{}{}".format(url, self.path)
-
-    async def send(self, token_id, device_token, data):
+    async def send(self, token_id, service, device_token, data):
 
         # TODO: intricisies of the PushServer format
         # https://raneeli.com:dgasio/dgasio/PushServer/blob/master/src/main/java/org/whispersystems/pushserver/entities/GcmMessage.java
@@ -37,7 +27,6 @@ class PushServerClient:
             raise NotImplementedError("Only data key allowed is 'message'")
 
         payload = {
-            "gcmId": device_token,
             "number": token_id,
             "message": data['message'],
             "deviceId": 1,
@@ -47,13 +36,16 @@ class PushServerClient:
             "call": False
         }
 
-        auth = self.username.encode('utf-8') + b":" + self.password.encode('utf-8')
-        print("curl -X PUT {} \\".format(self.url))
-        print("-H 'Authorization: Basic {}' \\".format(base64.b64encode(auth).decode('utf-8')))
-        print("-H 'Content-Type: application/json' \\")
-        print("--data '{}'".format(json.dumps(payload)))
+        if service == 'gcm' or service == 'fcm':
+            payload["gcmId"] = device_token
+            url = "{}/api/v1/push/gcm".format(self.base_url)
+        elif service == 'apn':
+            payload["apnId"] = device_token
+            url = "{}/api/v1/push/apn".format(self.base_url)
+        else:
+            raise PushServerError("Unsupported network: '{}'".format(service))
 
-        resp = await self.client.fetch(self.url, method="PUT",
+        resp = await self.client.fetch(url, method="PUT",
                                        headers={
                                            'Content-Type': 'application/json'
                                        },
@@ -73,8 +65,12 @@ class GCMHttpPushClient:
         self.server_key = server_key
         self.client = tornado.httpclient.AsyncHTTPClient()
 
-    def send_impl(self, payload):
-        return self.client.fetch("https://gcm-http.googleapis.com/gcm/send", method="POST",
+    def send_impl(self, payload, service):
+        if service == 'fcm':
+            url = 'https://fcm.googleapis.com/fcm/send'
+        else:
+            url = "https://gcm-http.googleapis.com/gcm/send"
+        return self.client.fetch(url, method="POST",
                                  headers={
                                      'Authorization': "key={}".format(self.server_key),
                                      'Content-Type': 'application/json'
@@ -82,17 +78,20 @@ class GCMHttpPushClient:
                                  body=json.dumps(payload).encode('utf-8'),
                                  raise_error=False)
 
-    async def send(self, token_id, device_token, data):
+    async def send(self, token_id, service, device_token, data):
 
         if not isinstance(data, dict):
             raise TypeError("data must be a dict")
+
+        if not (service == 'gcm' or service == 'fcm'):
+            raise PushServerError("Unsupported network: '{}'".format(service))
 
         payload = {
             "data": data,
             "to": device_token
         }
 
-        resp = await self.send_impl(payload)
+        resp = await self.send_impl(payload, service)
 
         if resp.code == 200:
             return True
