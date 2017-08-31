@@ -10,8 +10,8 @@ import tornado.httpserver
 
 import threading
 
+from ethutils import private_key_to_address
 from dgasio.test.utils import get_unused_port
-from dgasio.crypto import private_key_to_address
 from dgasio.request import sign_request
 
 from tokenservices.test.test_signed_request_handler import SimpleHandler

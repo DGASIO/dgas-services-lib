@@ -10,6 +10,7 @@ dependencies:
 
 test:
   override:
+    - rm -f .eggs/asyncpg* .eggs/dgasio* .eggs/ethutils*
     - python setup.py test
 
 deployment:
