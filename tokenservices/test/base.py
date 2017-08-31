@@ -1,8 +1,11 @@
+import asyncio
 import asyncpg.test.base
 import tornado.escape
 import tornado.httputil
 import tornado.websocket
 import time
+
+from tornado.platform.asyncio import to_asyncio_future
 
 from asyncpg.errors import JsonRPCError
 from dgasio.crypto import private_key_to_address
@@ -43,13 +46,14 @@ class TokenWebSocketJsonRPCClient:
         self.con = await tornado.websocket.websocket_connect(request)
         return self.con
 
-    async def call(self, method, params, notification=False):
+    async def call(self, method, params=None, notification=False):
 
         msg = {
             "jsonrpc": "2.0",
-            "method": method,
-            "params": params
+            "method": method
         }
+        if params:
+            msg['params'] = params
         if not notification:
             msg['id'] = self.id
             self.id += 1
@@ -63,10 +67,21 @@ class TokenWebSocketJsonRPCClient:
             raise JsonRPCError(msg['id'], result['error']['code'], result['error']['message'], result['error']['data'] if 'data' in result['error'] else None)
         return result['result']
 
-    async def read(self):
+    async def read(self, *, timeout=None):
 
-        result = await self.con.read_message()
-        result = tornado.escape.json_decode(result)
+        f = self.con.read_message()
+        if timeout:
+            try:
+                result = await asyncio.wait_for(to_asyncio_future(f), timeout)
+            except asyncio.TimeoutError as e:
+                # reset the connection's read state
+                self.con.read_future = None
+                return None
+        else:
+            result = await f
+
+        if result:
+            result = tornado.escape.json_decode(result)
         return result
 
 
