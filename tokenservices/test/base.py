@@ -1,12 +1,74 @@
 import asyncpg.test.base
 import tornado.escape
 import tornado.httputil
+import tornado.websocket
 import time
 
+from asyncpg.errors import JsonRPCError
 from dgasio.crypto import private_key_to_address
 from dgasio.request import sign_request
 
 from tokenservices.handlers import TOKEN_TIMESTAMP_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_ID_ADDRESS_HEADER
+
+class TokenWebSocketJsonRPCClient:
+
+    def __init__(self, url, *, signing_key):
+
+        if url.startswith('http://'):
+            url = url.replace('http://', 'ws://')
+        elif url.startswith('https://'):
+            url = url.replace('https://', 'wss://')
+        elif not (url.startswith('ws://') or url.startswith('wss://')):
+            raise TypeError("url must begin with ws://")
+
+        self.url = url
+        self.signing_key = signing_key
+        self.id = 1
+
+    async def connect(self):
+
+        # find out if there's a path prefix added by get_url
+        path = "/{}".format(self.url.split('/', 3)[-1])
+
+        address = private_key_to_address(self.signing_key)
+        timestamp = int(time.time())
+        signature = sign_request(self.signing_key, "GET", path, timestamp, None)
+
+        request = tornado.httpclient.HTTPRequest(self.url, headers={
+            TOKEN_ID_ADDRESS_HEADER: address,
+            TOKEN_SIGNATURE_HEADER: signature,
+            TOKEN_TIMESTAMP_HEADER: str(timestamp)
+        })
+
+        self.con = await tornado.websocket.websocket_connect(request)
+        return self.con
+
+    async def call(self, method, params, notification=False):
+
+        msg = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params
+        }
+        if not notification:
+            msg['id'] = self.id
+            self.id += 1
+        self.con.write_message(tornado.escape.json_encode(msg))
+
+        if notification:
+            return
+
+        result = await self.read()
+        if 'error' in result:
+            raise JsonRPCError(msg['id'], result['error']['code'], result['error']['message'], result['error']['data'] if 'data' in result['error'] else None)
+        return result['result']
+
+    async def read(self):
+
+        result = await self.con.read_message()
+        result = tornado.escape.json_decode(result)
+        return result
+
 
 class AsyncHandlerTest(asyncpg.test.base.AsyncHandlerTest):
 
