@@ -1,10 +1,13 @@
 import time
+import asyncio
 from asyncpg.handlers import BaseHandler
 from asyncpg.errors import JSONHTTPError
 from ethutils import data_decoder
 from dgasio.utils import validate_signature, validate_address, parse_int
 from dgasio.crypto import ecrecover
 from dgasio.request import generate_request_signature_data_string
+from tornado.ioloop import IOLoop
+from functools import partial
 
 # used to validate the timestamp in requests. if the difference between
 # the timestamp and the current time is greater than this the reuqest
@@ -103,3 +106,96 @@ class RequestVerificationMixin:
             return False
         if raise_if_partial:
             raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing headers required for authentication'}]})
+
+DEFAULT_LOGIN_REQUESTS = {}
+
+class LoginAttempt:
+
+    def __init__(self, timeout=60, on_timeout=None):
+        self._future = asyncio.Future()
+        self._timeout = timeout
+        if on_timeout:
+            ioloop = IOLoop.current()
+            self._looptimeout = ioloop.add_timeout(ioloop.time() + timeout, on_timeout)
+        else:
+            self._looptimeout = None
+
+    def set_cancelled(self):
+        if not self._future.done():
+            self._future.set_result(None)
+
+    def cancel_timeout(self):
+        if self._looptimeout:
+            IOLoop.current().remove_timeout(self._looptimeout)
+            self._looptimeout = None
+
+    def set_success(self, address):
+        if not self._future.done():
+            self._future.set_result(address)
+
+    def set_failed(self, address):
+        if not self._future.done():
+            self._future.set_result(False)
+
+    def __await__(self):
+        return self._future.__await__()
+
+class WebLoginHandler(RequestVerificationMixin, BaseHandler):
+
+    @property
+    def login_requests(self):
+        return DEFAULT_LOGIN_REQUESTS
+
+    @property
+    def login_timeout(self):
+        return
+
+    def is_address_allowed(self, address):
+        raise NotImplementedError
+
+    def create_new_login_future(self, key, timeout=60):
+        if key in self.login_requests:
+            self.login_request[key].set_cancelled()
+        self.login_requests[key] = LoginAttempt(on_timeout=partial(self.invalidate_login, key))
+
+    def invalidate_login(self, key):
+        if key in self.login_requests:
+            self.login_requests[key].set_cancelled()
+            self.login_requests[key].cancel_timeout()
+        del self.login_requests[key]
+
+    def set_login_result(self, key, address):
+        if key not in self.login_requests:
+            self.create_new_login_future(key)
+        if self.is_address_allowed(address):
+            self.login_requests[key].set_success(address)
+        else:
+            self.set_cancelled()
+
+    async def get(self, key):
+
+        if self.is_request_signed():
+
+            address = self.verify_request()
+            self.set_login_result(key, address)
+            self.set_status(204)
+
+        else:
+
+            if key not in self.login_requests:
+                self.create_new_login_future(key)
+
+            address = await self.login_requests[key]
+
+            if address is None:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'request_timeout', 'message': 'Login request timed out'}]})
+            if address is False:
+                raise JSONHTTPError(401, body={'errors': [{'id': 'login_failed', 'message': 'Login failed'}]})
+
+            if hasattr(self, 'on_login'):
+                f = self.on_login(address)
+                if asyncio.iscoroutine(f):
+                    f = await f
+                return f
+            # else
+            self.write({"address": address})
