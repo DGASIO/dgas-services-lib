@@ -54,7 +54,7 @@ class PushServerClient:
                                        auth_password=self.password,
                                        raise_error=False)
 
-        if resp.code == 200:
+        if resp.code < 400:
             return True
         raise PushServerError(resp.body)
 
