@@ -28,7 +28,6 @@ class PushServerClient:
 
         payload = {
             "number": token_id,
-            "message": data['message'],
             "deviceId": 1,
             "receipt": False,
             "notification": False,
@@ -38,9 +37,18 @@ class PushServerClient:
 
         if service == 'gcm' or service == 'fcm':
             payload["gcmId"] = device_token
+            payload["message"] = data['message']
             url = "{}/api/v1/push/gcm".format(self.base_url)
         elif service == 'apn':
             payload["apnId"] = device_token
+            payload["message"] = json.dumps({
+                "aps": {
+                    "alert": {
+                        "body": data['message']
+                    },
+                    "content-available": 1
+                }
+            })
             url = "{}/api/v1/push/apn".format(self.base_url)
         else:
             raise PushServerError("Unsupported network: '{}'".format(service))
