@@ -46,7 +46,8 @@ class PushServerClient:
                     "alert": {
                         "body": data['message']
                     },
-                    "content-available": 1
+                    "content-available": 1,
+                    "mutable-content": 1
                 }
             })
             url = "{}/api/v1/push/apn".format(self.base_url)
