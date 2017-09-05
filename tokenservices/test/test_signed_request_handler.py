@@ -8,6 +8,7 @@ from tokenservices.test.base import AsyncHandlerTest
 from tornado.escape import json_encode
 from tornado.testing import gen_test
 from dgasio.request import sign_request
+from tokenservices.handlers import TIMESTAMP_EXPIRY
 
 FAUCET_PRIVATE_KEY = "0x0164f7c7399f4bb1eafeaae699ebbb12050bc6a50b2836b9ca766068a9d000c0"
 FAUCET_ADDRESS = "0xde3d2d9dd52ea80f7799ef4791063a5458d13913"
@@ -125,7 +126,7 @@ class RequestVerificationTest(AsyncHandlerTest):
     @gen_test
     async def test_expired_timestamp(self):
 
-        timestamp = int(time.time() - 60)
+        timestamp = int(time.time() - (TIMESTAMP_EXPIRY + 60))
 
         resp = await self.fetch_signed("/", signing_key=TEST_PRIVATE_KEY, method="POST", timestamp=timestamp)
 

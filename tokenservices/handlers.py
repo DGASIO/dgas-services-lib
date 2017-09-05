@@ -1,3 +1,4 @@
+import os
 import time
 from asyncpg.handlers import BaseHandler
 from asyncpg.errors import JSONHTTPError
@@ -9,7 +10,7 @@ from dgasio.request import generate_request_signature_data_string
 # used to validate the timestamp in requests. if the difference between
 # the timestamp and the current time is greater than this the reuqest
 # is rejected
-TIMESTAMP_EXPIRY = 15
+TIMESTAMP_EXPIRY = int(os.environ.get('TIMESTAMP_EXPIRY', 180))
 
 # TOKEN auth header variable names
 TOKEN_TIMESTAMP_HEADER = "Token-Timestamp"
