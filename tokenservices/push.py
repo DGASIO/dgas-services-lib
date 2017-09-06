@@ -8,13 +8,11 @@ class PushServerError(Exception):
 
 class PushServerClient:
 
-    def __init__(self, *, url, username=None, password=None, aps_flags=None):
+    def __init__(self, *, url, username=None, password=None):
 
         self.client = tornado.httpclient.AsyncHTTPClient()
         self.username = username
         self.password = password
-
-        self.aps_flags = aps_flags
 
         while url.endswith("/"):
             url = url[:-1]
@@ -45,13 +43,10 @@ class PushServerClient:
             payload["apnId"] = device_token
             aps_payload = {
                 "aps": {
-                    "alert": {
-                        "body": data['message']
-                    }
-                }
+                    "content-available": 1
+                },
+                "qofp": data['message']
             }
-            if self.aps_flags is not None:
-                aps_payload['aps'].update(self.aps_flags)
             payload["message"] = json.dumps(aps_payload)
             url = "{}/api/v1/push/apn".format(self.base_url)
         else:
