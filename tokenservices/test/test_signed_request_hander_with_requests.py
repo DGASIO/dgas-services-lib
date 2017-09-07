@@ -3,18 +3,18 @@ import requests
 import time
 import os
 
-import asyncpg.web
+import tokenservices.web
 import tornado.web
 import tornado.ioloop
 import tornado.httpserver
 
 import threading
 
-from ethutils import private_key_to_address
-from dgasio.test.utils import get_unused_port
-from dgasio.request import sign_request
+from tokenservices.ethereum.utils import private_key_to_address
+from .utils import get_unused_port
+from tokenservices.request import sign_request
 
-from tokenservices.test.test_signed_request_handler import SimpleHandler
+from .test_signed_request_handler import SimpleHandler
 from tokenservices.handlers import TOKEN_TIMESTAMP_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_ID_ADDRESS_HEADER
 
 TEST_PRIVATE_KEY = "0xe8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35"
@@ -50,7 +50,7 @@ class TornadoServer(threading.Thread):
         self.port = port
 
         self.ioloop = tornado.ioloop.IOLoop().instance()
-        self.application = asyncpg.web.Application([
+        self.application = tokenservices.web.Application([
             ("^/?$", SimpleHandler)
         ])
         self._server = tornado.httpserver.HTTPServer(self.application)

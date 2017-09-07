@@ -1,5 +1,3 @@
-import base64
-import random
 import json
 import tornado.httpclient
 

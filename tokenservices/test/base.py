@@ -1,18 +1,25 @@
 import asyncio
-import asyncpg.test.base
+import configparser
+import logging
 import tornado.escape
 import tornado.httputil
 import tornado.websocket
 import tornado.ioloop
+import tornado.testing
 import time
+import warnings
 
-from tornado.platform.asyncio import to_asyncio_future
+from tornado.platform.asyncio import to_asyncio_future, AsyncIOLoop
 
-from asyncpg.errors import JsonRPCError
-from ethutils import private_key_to_address
-from dgasio.request import sign_request
+from tokenservices.jsonrpc.errors import JsonRPCError
+from tokenservices.ethereum.utils import private_key_to_address
+from tokenservices.web import Application
+
+from tokenservices.request import sign_request
 
 from tokenservices.handlers import TOKEN_TIMESTAMP_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_ID_ADDRESS_HEADER
+
+logging.basicConfig()
 
 class TokenWebSocketJsonRPCClient:
 
@@ -124,7 +131,57 @@ class TokenWebSocketJsonRPCClient:
         return result
 
 
-class AsyncHandlerTest(asyncpg.test.base.AsyncHandlerTest):
+class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
+
+    @property
+    def log(self):
+        return logging.getLogger(self.__class__.__name__)
+
+    def get_new_ioloop(self):
+        io_loop = AsyncIOLoop()
+        asyncio.set_event_loop(io_loop.asyncio_loop)
+        return io_loop
+
+    def setUp(self, extraconf=None):
+        # TODO: re-enable this and figure out if any of the warnings matter
+        warnings.simplefilter("ignore")
+        self._config = configparser.ConfigParser()
+        conf = {
+            'general': {'debug': True},
+        }
+        if extraconf:
+            conf.update(extraconf)
+        self._config.read_dict(conf)
+        super(AsyncHandlerTest, self).setUp()
+
+    def get_app(self):
+        return Application(self.get_urls(), config=self._config, autoreload=False)
+
+    def get_urls(self):
+        raise NotImplementedError
+
+    def tearDown(self):
+        super(AsyncHandlerTest, self).tearDown()
+
+    def fetch(self, req, **kwargs):
+        if 'body' in kwargs and isinstance(kwargs['body'], dict):
+            kwargs.setdefault('headers', {})['Content-Type'] = "application/json"
+            kwargs['body'] = tornado.escape.json_encode(kwargs['body'])
+        # default raise_error to false
+        if 'raise_error' not in kwargs:
+            kwargs['raise_error'] = False
+
+        return self.http_client.fetch(self.get_url(req), self.stop, **kwargs)
+
+    def assertResponseCodeEqual(self, response, expected_code, message=None):
+        """Asserts that the response code was what was expected, with the addition
+        that if a 599 is returned (either a timeout or a local exception it will
+        rethrow that exception"""
+
+        if response.code == 599 and expected_code != 599:
+            response.rethrow()
+
+        self.assertEqual(response.code, expected_code, message)
 
     def fetch_signed(self, path, *, signing_key=None, signature=None, timestamp=None, address=None, **kwargs):
 
@@ -185,4 +242,4 @@ class AsyncHandlerTest(asyncpg.test.base.AsyncHandlerTest):
         if body is None and method == "POST":
             body = b""
 
-        return super().fetch(path, body=body, **kwargs)
+        return self.fetch(path, body=body, **kwargs)

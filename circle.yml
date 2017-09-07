@@ -5,6 +5,16 @@ machine:
     version: 6.7.0
 
 dependencies:
+  cache_directories:
+    - ~/.ethash
+  pre:
+    - sudo apt-get install -y software-properties-common
+    - sudo add-apt-repository -y ppa:ethereum/ethereum
+    - sudo apt-get update
+    - sudo apt-get install -y ethereum ethminer
+    - if [[ ! -d ~/.ethash ]]; then ethminer -D 0; fi
+    - wget http://d1h4xl4cr1h0mo.cloudfront.net/v1.6.5/x86_64-unknown-linux-gnu/parity_1.6.5_amd64.deb
+    - sudo dpkg -i parity_1.6.5_amd64.deb
   post:
     - npm install -g aglio
 

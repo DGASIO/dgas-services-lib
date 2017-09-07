@@ -2,13 +2,13 @@ import time
 import os
 import mimetypes
 from io import BytesIO
-from asyncpg.handlers import BaseHandler
-from tokenservices.handlers import RequestVerificationMixin
-from tokenservices.test.base import AsyncHandlerTest
+from tokenservices.handlers import BaseHandler, RequestVerificationMixin
 from tornado.escape import json_encode
 from tornado.testing import gen_test
-from dgasio.request import sign_request
+from tokenservices.request import sign_request
 from tokenservices.handlers import TIMESTAMP_EXPIRY
+
+from .base import AsyncHandlerTest
 
 FAUCET_PRIVATE_KEY = "0x0164f7c7399f4bb1eafeaae699ebbb12050bc6a50b2836b9ca766068a9d000c0"
 FAUCET_ADDRESS = "0xde3d2d9dd52ea80f7799ef4791063a5458d13913"
