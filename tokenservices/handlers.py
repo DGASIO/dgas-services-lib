@@ -150,6 +150,9 @@ class BaseHandler(JsonBodyMixin, tornado.web.RequestHandler):
         log.error(rval)
         self.write(rval)
 
+    def run_in_executor(self, func, *args):
+        return self.application.asyncio_loop.run_in_executor(self.application.executor, func, *args)
+
 class GenerateTimestamp(BaseHandler):
 
     def get(self):
