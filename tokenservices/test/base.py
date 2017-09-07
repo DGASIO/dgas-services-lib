@@ -3,6 +3,7 @@ import asyncpg.test.base
 import tornado.escape
 import tornado.httputil
 import tornado.websocket
+import tornado.ioloop
 import time
 
 from tornado.platform.asyncio import to_asyncio_future
@@ -28,6 +29,9 @@ class TokenWebSocketJsonRPCClient:
         self.signing_key = signing_key
         self.id = 1
 
+        self.calls = {}
+        self.subscription_message_queue = asyncio.Queue()
+
     async def connect(self):
 
         # find out if there's a path prefix added by get_url
@@ -46,6 +50,27 @@ class TokenWebSocketJsonRPCClient:
         self.con = await tornado.websocket.websocket_connect(request)
         return self.con
 
+    async def handle_calls(self, call_id, future):
+        if call_id in self.calls:
+            raise Exception("Already waiting for a response to call with id: {}".format(call_id))
+        loop_running = bool(self.calls)
+        self.calls[call_id] = future
+
+        # if there are already things in this means
+        # we already have a process running and we
+        # don't need to start the loop again
+        if loop_running:
+            return
+
+        while self.calls:
+            result = await self._read()
+            if 'id' not in result:
+                self.subscription_message_queue.put_nowait(result)
+                continue
+            fut = self.calls.pop(result['id'], None)
+            if fut:
+                fut.set_result(result)
+
     async def call(self, method, params=None, notification=False):
 
         msg = {
@@ -62,12 +87,26 @@ class TokenWebSocketJsonRPCClient:
         if notification:
             return
 
-        result = await self.read()
+        future = asyncio.Future()
+        tornado.ioloop.IOLoop.current().add_callback(self.handle_calls, msg['id'], future)
+
+        result = await future
+
         if 'error' in result:
             raise JsonRPCError(msg['id'], result['error']['code'], result['error']['message'], result['error']['data'] if 'data' in result['error'] else None)
+        if 'result' not in result:
+            raise JsonRPCError(msg['id'], -1, "missing result field from jsonrpc response: {}".format(result), None)
         return result['result']
 
     async def read(self, *, timeout=None):
+        if not self.subscription_message_queue.empty():
+            return self.subscription_message_queue.get_nowait()
+        if self.calls:
+            return await asyncio.wait_for(self.subscription_message_queue.get(), timeout)
+        else:
+            return await self._read(timeout=timeout)
+
+    async def _read(self, *, timeout=None):
 
         f = self.con.read_message()
         if timeout:
