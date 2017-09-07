@@ -11,7 +11,7 @@ When making any authenticated HTTP requests (i.e. requests that require the user
 The following can be used for generating a valid signature:
 
 1) If your request has no body skip to step 4.
-2) Take the body of your request and [KECCAK-256](http://keccak.noekeon.org/) encode it.
+2) Take the body of your request and hash it with [KECCAK-256](http://keccak.noekeon.org/).
 3) Base64 encode the result of Step 1 as a string.
 4) Get the request verb of the request (e.g. `GET`, `POST`, etc) as a string.
 5) Get the path of the request as a string.
@@ -40,7 +40,7 @@ The following can be used for generating a valid signature:
 
 ### Signing the payload
 
-1) Encode the payload with [Keccak-256](http://keccak.noekeon.org/) encoding.
+1) Hash the payload with [Keccak-256](http://keccak.noekeon.org/) encoding.
 2) Sign the encoded payload with a private key using recoverable ECDSA.
 3) Serialise and convert the result from step 2 to a hex string.
 
