@@ -12,7 +12,7 @@ setup(
     setup_requires=['pytest-runner'],
     install_requires=[
         'regex',
-        'tornado==4.4.2',
+        'tornado==4.5.1',
         'ethereum',
     ],
     dependency_links=[

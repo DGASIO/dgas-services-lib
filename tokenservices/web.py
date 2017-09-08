@@ -137,24 +137,24 @@ class Application(tornado.web.Application):
         self.asyncio_loop.run_forever()
 
 
-class _RequestDispatcher(tornado.web._RequestDispatcher):
-    def set_request(self, request):
-        super(_RequestDispatcher, self).set_request(request)
+# class _RequestDispatcher(tornado.web._RequestDispatcher):
+#     def set_request(self, request):
+#         super(_RequestDispatcher, self).set_request(request)
 
-class DebuggingApplication(Application):
+# class DebuggingApplication(Application):
 
-    def listen(self, *args, **kwargs):
-        self._server = super(DebuggingApplication, self).listen(*args, **kwargs)
+#     def listen(self, *args, **kwargs):
+#         self._server = super(DebuggingApplication, self).listen(*args, **kwargs)
 
-    def start_request(self, server_conn, request_conn):
-        return _RequestDispatcher(self, request_conn)
+#     def start_request(self, server_conn, request_conn):
+#         return _RequestDispatcher(self, request_conn)
 
-    def log_request(self, handler):
-        super(DebuggingApplication, self).log_request(handler)
-        size = self.connection_pool._queue.qsize()
-        access_log.info("Stats for Server on port '{}': Active Server connections: {}, DB Connections in pool: {}, DB Pool size: {}".format(
-            tornado.options.options.port,
-            len(self._server._connections),
-            size,
-            self.connection_pool._con_count
-        ))
+#     def log_request(self, handler):
+#         super(DebuggingApplication, self).log_request(handler)
+#         size = self.connection_pool._queue.qsize()
+#         access_log.info("Stats for Server on port '{}': Active Server connections: {}, DB Connections in pool: {}, DB Pool size: {}".format(
+#             tornado.options.options.port,
+#             len(self._server._connections),
+#             size,
+#             self.connection_pool._con_count
+#         ))
