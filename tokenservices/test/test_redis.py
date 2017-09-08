@@ -21,8 +21,20 @@ class RedisTest(AsyncHandlerTest):
         return [(r'^/$', Handler)]
 
     @gen_test
-    @requires_redis
-    async def test_redis_connection(self):
+    @requires_redis(pass_redis=True)
+    async def test_redis_connection(self, *, redis_server):
 
         await self.fetch('/?key=TESTKEY&value=1')
         self.assertEqual(self.redis.get("TESTKEY"), '1')
+
+        # test pause and restart
+        redis_server.pause()
+
+        # make sure the pause actually stopped the service
+        resp = await self.fetch('/?key=TESTKEY&value=2')
+        self.assertEqual(resp.code, 500)
+
+        redis_server.start()
+
+        await self.fetch('/?key=TESTKEY&value=3')
+        self.assertEqual(self.redis.get("TESTKEY"), '3')

@@ -1,32 +1,40 @@
 import asyncio
-import functools
-import shutil
-import uuid
+import os
+import signal
 import redis
+import testing.redis
 
-from .processes import wait_for_start_line, shutdown_process
+# adjust the defaul settings to allow unixsocket and requirepass settings
+class RedisServer(testing.redis.RedisServer):
 
-def gen_redis_config():
-    """generates a redis config using a random unix socket"""
-    socket_path = "/tmp/redis-testing.{}.sock".format(uuid.uuid4().hex)
-    return {'unix_socket_path': socket_path, 'db': '1', 'password': 'testing'}
+    def initialize(self):
+        super().initialize()
+        self.redis_conf = self.settings.get('redis_conf', {})
+        if 'port' in self.redis_conf:
+            port = self.redis_conf['port']
+        elif self.settings['port'] is not None:
+            port = self.settings['port']
+        else:
+            port = None
+        if port == 0:
+            self.redis_conf['unixsocket'] = os.path.join(self.base_dir, 'redis.sock')
 
-def start_redis(config=None, timeout=5):
-    """Starts the testing redis server and returns the subprocess"""
+    def dsn(self, **kwargs):
+        params = super().dsn(**kwargs)
+        if 'unixsocket' in self.redis_conf:
+            del params['host']
+            del params['port']
+            params['unix_socket_path'] = self.redis_conf['unixsocket']
+        if 'requirepass' in self.redis_conf:
+            params['password'] = self.redis_conf['requirepass']
+        return params
 
-    if config is None:
-        config = gen_redis_config()
-    redis_server_cmd = ["redis-server", "--unixsocket", config['unix_socket_path'], "--port", "0", "--loglevel", "warning"]
-    if 'password' in config:
-        redis_server_cmd.extend(["--requirepass", "testing"])
+    def pause(self):
+        """stops redis, without calling the cleanup"""
+        self.terminate(signal.SIGTERM)
 
-    process = wait_for_start_line(redis_server_cmd, "Server started")
 
-    process._post_terminate_cleanup = functools.partial(shutil.rmtree, config['unix_socket_path'], ignore_errors=True)
-
-    return process, config
-
-def requires_redis(func=None):
+def requires_redis(func=None, pass_redis=None):
     """Used to ensure all database connections are returned to the pool
     before finishing the test"""
 
@@ -34,24 +42,39 @@ def requires_redis(func=None):
 
         async def wrapper(self, *args, **kwargs):
 
-            process, config = start_redis()
+            redis_server = RedisServer(redis_conf={
+                'requirepass': 'testing',  # use password to make sure clients support using a password
+                'port': 0,  # force using unix domain socket
+                'loglevel': 'warning'  # suppress unnecessary messages
+            })
 
-            self._app.config['redis'] = config
+            self._app.config['redis'] = config = redis_server.dsn(db=1)  # use db=1 to test clients ability to switch database
 
-            self._app.redis_connection_pool = redis.ConnectionPool(
-                connection_class=redis.connection.UnixDomainSocketConnection,
-                decode_responses=True,
-                password=config['password'] if 'password' in config else None,
-                path=config['unix_socket_path'])
+            if 'unix_socket_path' in config:
+                self._app.redis_connection_pool = redis.ConnectionPool(
+                    connection_class=redis.connection.UnixDomainSocketConnection,
+                    decode_responses=True,
+                    password=config['password'] if 'password' in config else None,
+                    path=config['unix_socket_path'])
+            else:
+                self._app.redis_connection_pool = redis.ConnectionPool(
+                    decode_responses=True,
+                    password=config['password'] if 'password' in config else None,
+                    host=config['host'],
+                    port=config['port'])
+
 
             self.redis = redis.StrictRedis(connection_pool=self._app.redis_connection_pool)
+
+            if pass_redis:
+                kwargs['redis_server' if pass_redis is True else pass_redis] = redis_server
 
             try:
                 f = fn(self, *args, **kwargs)
                 if asyncio.iscoroutine(f):
                     await f
             finally:
-                shutdown_process(process)
+                redis_server.stop()
 
         return wrapper
 
