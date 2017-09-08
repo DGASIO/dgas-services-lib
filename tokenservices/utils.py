@@ -11,7 +11,7 @@ else:
     str_types = (unicode, basestring) # noqa
 
 HEX_STRING_RE = regex.compile('^(?:0[xX])([0-9a-fA-F]+)$')
-INT_STRING_RE = regex.compile('^(-?[1-9][0-9]*)$')
+INT_STRING_RE = regex.compile('^(-?(?:0|[1-9][0-9]*))$')
 DECIMAL_STRING_RE = regex.compile('^(-?(0|[1-9][0-9]*)\.[0-9]+)$')
 ETH_ADDRESS_RE = regex.compile('^(?:0[xX])([0-9a-fA-F]{40})$')
 
