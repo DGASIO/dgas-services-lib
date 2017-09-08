@@ -148,3 +148,32 @@ class RequestVerificationTest(AsyncHandlerTest):
                                        signature=signature, timestamp=timestamp, address=TEST_ADDRESS)
 
         self.assertResponseCodeEqual(resp, 204)
+
+    @gen_test
+    async def test_negative_timestamp(self):
+
+        signing_key = TEST_PRIVATE_KEY
+        timestamp = int(time.time())
+        signature = sign_request(signing_key, "GET", "/", timestamp, None)
+
+        resp = await self.fetch_signed(
+            "/", method="GET",
+            address=TEST_ADDRESS, timestamp=timestamp, signature=signature)
+
+        self.assertResponseCodeEqual(resp, 204)
+
+        # try replay simply changing the timestamp to negative
+        timestamp = -timestamp
+        resp = await self.fetch_signed(
+            "/", method="GET",
+            address=TEST_ADDRESS, timestamp=timestamp, signature=signature)
+
+        self.assertResponseCodeEqual(resp, 400)
+
+        # sign with negative timestamp
+        signature = sign_request(signing_key, "GET", "/", timestamp, None)
+        resp = await self.fetch_signed(
+            "/", method="GET",
+            address=TEST_ADDRESS, timestamp=timestamp, signature=signature)
+
+        self.assertResponseCodeEqual(resp, 400)
