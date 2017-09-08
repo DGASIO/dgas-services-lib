@@ -1,4 +1,5 @@
 import os
+import regex
 import time
 import tornado.escape
 import tornado.web
@@ -130,6 +131,19 @@ class BaseHandler(JsonBodyMixin, tornado.web.RequestHandler):
             log.debug("Preparing request: {} {}".format(self.request.method, self.request.path))
             for k, v in self.request.headers.items():
                 log.debug("{}: {}".format(k, v))
+
+        if 'X-Forwarded-Proto' in self.request.headers:
+            proto = self.request.headers['X-Forwarded-Proto']
+        else:
+            proto = self.request.protocol
+        if proto != 'https' and 'enforce_https' in self.application.config['general']:
+            mode = self.application.config['general']['enforce_https']
+            if mode == 'reject':
+                self.set_status(404)
+                self.finish()
+            else:
+                # default to redirect
+                self.redirect(regex.sub(r'^([^:]+)', 'https', self.request.full_url()), permanent=True)
 
         return super().prepare()
 

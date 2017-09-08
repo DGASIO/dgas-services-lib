@@ -111,6 +111,12 @@ class Application(tornado.web.Application):
         if 'LOG_LEVEL' in os.environ:
             config.setdefault('logging', SectionProxy(config, 'logging'))['level'] = os.environ['LOG_LEVEL']
 
+        if 'ENFORCE_HTTPS' in os.environ:
+            mode = os.environ['ENFORCE_HTTPS']
+            if mode not in ['reject', 'redirect']:
+                mode = 'redirect'
+            config['general']['enforce_https'] = mode
+
         if 'logging' in config and 'level' in config['logging']:
             level = getattr(logging, config['logging']['level'].upper(), None)
             if level:
