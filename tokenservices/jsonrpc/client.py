@@ -104,7 +104,7 @@ class JsonRPCClient:
         source_address = validate_hex(source_address)
         hexkwargs = {"from": source_address}
 
-        if target_address != '':
+        if target_address:
             target_address = validate_hex(target_address)
             hexkwargs["to"] = target_address
 
@@ -112,7 +112,8 @@ class JsonRPCClient:
             if k == 'gasprice' or k == 'gas_price':
                 k = 'gasPrice'
             hexkwargs[k] = validate_hex(value)
-
+        if 'value' not in hexkwargs:
+            hexkwargs['value'] = "0x0"
         result = await self._fetch("eth_estimateGas", [hexkwargs])
 
         return int(result, 16)

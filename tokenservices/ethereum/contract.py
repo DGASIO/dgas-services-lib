@@ -88,7 +88,7 @@ class ContractMethod:
             nonce = await ethclient.eth_getTransactionCount(self.from_address)
             balance = await ethclient.eth_getBalance(self.from_address)
 
-            _startgas = await ethclient.eth_estimateGas(self.from_address, self.contract.address, data=data, nonce=nonce, value=0, gasprice=gasprice)
+            _startgas = await ethclient.eth_estimateGas(self.from_address, self.contract.address, data=data, nonce=nonce, value=value, gasprice=gasprice)
             if startgas is None:
                 startgas = _startgas
             if startgas == 50000000:

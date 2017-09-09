@@ -19,7 +19,10 @@ def address_decoder(data):
 
 def create_transaction(*, nonce, gasprice, startgas, to, value, data=b'', v=0, r=0, s=0):
 
-    to = address_decoder(to)
+    if to:
+        to = address_decoder(to)
+    else:
+        to = b''
 
     tx = Transaction(nonce, gasprice, startgas, to, value, data, v, r, s)
     tx._sender = None
