@@ -133,6 +133,8 @@ class TokenWebSocketJsonRPCClient:
 
 class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
 
+    APPLICATION_CLASS = Application
+
     @property
     def log(self):
         return logging.getLogger(self.__class__.__name__)
@@ -155,7 +157,7 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
         super(AsyncHandlerTest, self).setUp()
 
     def get_app(self):
-        return Application(self.get_urls(), config=self._config, autoreload=False)
+        return self.APPLICATION_CLASS(self.get_urls(), config=self._config, autoreload=False)
 
     def get_urls(self):
         raise NotImplementedError

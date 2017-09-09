@@ -26,38 +26,7 @@ tornado.platform.asyncio.AsyncIOMainLoop().install()
 tornado.options.define("config", default="config-localhost.ini", help="configuration file")
 tornado.options.define("port", default=8888, help="port to listen on")
 
-class Application(tornado.web.Application):
-
-    def __init__(self, urls, config=None, **kwargs):
-
-        if config:
-            self.config = config
-        else:
-            self.config = self.process_config()
-
-        cookie_secret = kwargs.pop('cookie_secret', None)
-        if cookie_secret is None:
-            cookie_secret = self.config['general'].get('cookie_secret', None)
-
-        super(Application, self).__init__(urls, debug=self.config['general'].getboolean('debug'),
-                                          cookie_secret=cookie_secret, **kwargs)
-
-        self.asyncio_loop = asyncio.get_event_loop()
-        if 'database' in self.config:
-            from .database import prepare_database
-            self.connection_pool = self.asyncio_loop.run_until_complete(
-                prepare_database(self.config['database']))
-        else:
-            self.connection_pool = None
-
-        if 'redis' in self.config:
-            from .redis import prepare_redis
-            self.redis_connection_pool = prepare_redis(self.config['redis'])
-
-        max_workers = self.config['executor']['max_workers'] \
-                      if 'executor' in self.config and 'max_workers' in self.config['executor'] \
-                      else None
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+class ConfigurationManager:
 
     def process_config(self):
 
@@ -130,6 +99,44 @@ class Application(tornado.web.Application):
         configure_logger(access_log)
 
         return config
+
+    def prepare_databases(self):
+
+        self.asyncio_loop = asyncio.get_event_loop()
+        if 'database' in self.config:
+            from .database import prepare_database
+            self.connection_pool = self.asyncio_loop.run_until_complete(
+                prepare_database(self.config['database']))
+        else:
+            self.connection_pool = None
+
+        if 'redis' in self.config:
+            from .redis import prepare_redis
+            self.redis_connection_pool = prepare_redis(self.config['redis'])
+
+
+class Application(ConfigurationManager, tornado.web.Application):
+
+    def __init__(self, urls, config=None, **kwargs):
+
+        if config:
+            self.config = config
+        else:
+            self.config = self.process_config()
+
+        cookie_secret = kwargs.pop('cookie_secret', None)
+        if cookie_secret is None:
+            cookie_secret = self.config['general'].get('cookie_secret', None)
+
+        super(Application, self).__init__(urls, debug=self.config['general'].getboolean('debug'),
+                                          cookie_secret=cookie_secret, **kwargs)
+
+        self.prepare_databases()
+
+        max_workers = self.config['executor']['max_workers'] \
+                      if 'executor' in self.config and 'max_workers' in self.config['executor'] \
+                      else None
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
 
     def start(self):
         self.listen(tornado.options.options.port, xheaders=True)

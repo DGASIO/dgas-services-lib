@@ -63,6 +63,10 @@ def requires_redis(func=None, pass_redis=None):
                     host=config['host'],
                     port=config['port'])
 
+            # if the app has a `task_listener`, adjust it's config for the test
+            if hasattr(self._app, 'task_listener'):
+                await self._app.task_listener.stop_task_listener()
+                await self._app.task_listener.start_task_listener()
 
             self.redis = redis.StrictRedis(connection_pool=self._app.redis_connection_pool)
 
@@ -74,6 +78,10 @@ def requires_redis(func=None, pass_redis=None):
                 if asyncio.iscoroutine(f):
                     await f
             finally:
+
+                if hasattr(self._app, 'task_listener'):
+                    await self._app.task_listener.stop_task_listener()
+
                 redis_server.stop()
 
         return wrapper

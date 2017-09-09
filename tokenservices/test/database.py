@@ -3,6 +3,7 @@ import testing.postgresql
 from tokenservices.database import prepare_database
 
 POSTGRESQL_FACTORY = testing.postgresql.PostgresqlFactory(cache_initialized_db=True)
+    #postgres_args="-h 127.0.0.1 -F -c logging_collector=on -c log_directory=/tmp/log -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log -c log_statement=all")
 
 def requires_database(func=None):
     """Used to ensure all database connections are returned to the pool

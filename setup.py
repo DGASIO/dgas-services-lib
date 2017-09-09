@@ -24,6 +24,8 @@ setup(
         'testing.postgresql',
         'testing.redis',
         'asyncpg',
-        'redis'
+        'redis',
+        'msgpack-python',
+        'aioredis'
     ]
 )
