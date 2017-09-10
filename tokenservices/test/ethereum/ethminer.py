@@ -13,7 +13,8 @@ class EthMiner(Database):
                             ethminer_cmd=None,
                             jsonrpc_url=None,
                             home=None,
-                            copy_data_from=None)
+                            copy_data_from=None,
+                            debug=None)
 
     subdirectories = ['data', 'tmp']
 
@@ -24,6 +25,7 @@ class EthMiner(Database):
 
         self.jsonrpc_url = self.settings.get('jsonrpc_url') or 'http://127.0.0.1:8545'
         self.home = self.settings.get('home') or os.path.expanduser("~")
+        self.debug = self.settings.get('debug') or False
 
     def prestart(self):
         if not os.path.exists(os.path.join(self.home, '.ethash')):
@@ -44,9 +46,10 @@ class EthMiner(Database):
                 flags |= subprocess.CREATE_NEW_PROCESS_GROUP
             custom_env = os.environ.copy()
             custom_env["HOME"] = self.home
-            self.child_process = subprocess.Popen(command, stdout=logger, stderr=logger,
-                                                  env=custom_env,
-                                                  creationflags=flags)
+            kwargs = {'env': custom_env, 'creationflags': flags}
+            if not self.debug:
+                kwargs.update({'stdout': logger, 'stderr': logger})
+            self.child_process = subprocess.Popen(command, **kwargs)
         except Exception as exc:
             raise RuntimeError('failed to launch %s: %r' % (self.name, exc))
         else:

@@ -199,7 +199,7 @@ class ParityServer(Database):
 class ParityServerFactory(DatabaseFactory):
     target_class = ParityServer
 
-def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=False, pass_ethminer=False):
+def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=False, pass_ethminer=False, debug_ethminer=False):
     """Used to ensure all database connections are returned to the pool
     before finishing the test"""
 
@@ -208,7 +208,8 @@ def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=Fal
         async def wrapper(self, *args, **kwargs):
 
             parity = ParityServer(difficulty=difficulty)
-            ethminer = EthMiner(jsonrpc_url=parity.dsn()['url'])
+            ethminer = EthMiner(jsonrpc_url=parity.dsn()['url'],
+                                debug=debug_ethminer)
 
             self._app.config['ethereum'] = parity.dsn()
 

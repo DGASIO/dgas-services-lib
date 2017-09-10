@@ -204,8 +204,9 @@ class TaskListener:
             except aioredis.errors.PoolClosedError:
                 print('...')
                 await asyncio.sleep(0.1)
-            except Exception as e:
+            except Exception:
                 log.exception("Unhandled exception creating redis connection")
+                await asyncio.sleep(0.1)
 
     async def _task_dispatch_loop(self):
 
