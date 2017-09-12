@@ -68,7 +68,7 @@ class EthMiner(Database):
 
     def get_server_commandline(self):
         return [self.ethminer,
-                '-F', self.jsonrpc_url]
+                '-F', self.jsonrpc_url, '-t', '1', '--no-precompute']
 
     def is_server_available(self):
         return True
