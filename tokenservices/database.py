@@ -35,6 +35,13 @@ def create_pool(dsn=None, *,
         # check for 0.9.0 support
         if '_init' in asyncpg.pool.Pool.__slots__:
             connect_kwargs['init'] = init
+    # handle input from ConfigParser
+    if isinstance(min_size, str):
+        min_size = int(min_size)
+    if isinstance(max_size, str):
+        max_size = int(max_size)
+    if min_size > max_size:
+        min_size = max_size
     return SafePool(dsn,
                     min_size=min_size, max_size=max_size,
                     max_queries=max_queries, loop=loop, setup=setup,

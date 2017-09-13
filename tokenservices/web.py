@@ -56,6 +56,11 @@ class ConfigurationManager:
             else:
                 config['database'] = {'dsn': os.environ['DATABASE_URL']}
 
+        if 'MAX_DATABASE_CONNECTIONS' in os.environ:
+            config['database']['max_size'] = os.environ['MAX_DATABASE_CONNECTIONS']
+        if 'MIN_DATABASE_CONNECTIONS' in os.environ:
+            config['database']['min_size'] = os.environ['MIN_DATABASE_CONNECTIONS']
+
         if 'REDIS_URL' in os.environ:
             config['redis'] = {'url': os.environ['REDIS_URL']}
 
