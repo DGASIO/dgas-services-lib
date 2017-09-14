@@ -10,6 +10,14 @@ class SlackLogHandler(logging.Handler):
     def __init__(self, name, endpoints, level=None, client_class=tornado.httpclient.AsyncHTTPClient):
         logging.Handler.__init__(self)
         self.name = name
+        if isinstance(level, str):
+            loglevel = getattr(logging, level.upper(), None)
+            if loglevel is None:
+                try:
+                    loglevel = int(level)
+                except ValueError:
+                    pass
+            level = loglevel
         if isinstance(endpoints, dict):
             default = endpoints['default'] if 'default' in endpoints else None
             debug = endpoints['debug'] if 'debug' in endpoints else default
@@ -50,7 +58,7 @@ class SlackLogHandler(logging.Handler):
             text=text,
             unfurl_links=False,
             username=self.name,
-            icon_url=icon
+            icon_emoji=icon
         ))
         body = urllib.parse.urlencode(dict(payload=json))
         endpoints = self.endpoint_map[record.levelno]
