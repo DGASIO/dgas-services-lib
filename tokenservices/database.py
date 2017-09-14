@@ -25,8 +25,12 @@ def create_pool(dsn=None, *,
                 setup=None,
                 loop=None,
                 init=None,
+                connection_class=asyncpg.connection.Connection,
                 **connect_kwargs):
     try:
+        # check for 0.11.0 support
+        if '_connection_class' in asyncpg.pool.Pool.__slots__:
+            connect_kwargs['connection_class'] = connection_class
         # check for 0.10.0 support
         from asyncpg.pool import PoolConnectionHolder
         connect_kwargs['max_inactive_connection_lifetime'] = max_inactive_connection_lifetime
