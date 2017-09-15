@@ -48,8 +48,7 @@ class Task:
     def cancel(self):
         self._future.cancel()
         if hasattr(self, '_calling_task'):
-            if not self._calling_task.done():
-                self._calling_task.cancel()
+            self._calling_task.cancel()
 
     def set_result(self, result):
         if self._future.done():
@@ -202,7 +201,6 @@ class TaskListener:
             except (FileNotFoundError, ConnectionRefusedError, asyncio.CancelledError):
                 await asyncio.sleep(0.1)
             except aioredis.errors.PoolClosedError:
-                print('...')
                 await asyncio.sleep(0.1)
             except Exception:
                 log.exception("Unhandled exception creating redis connection")
@@ -290,15 +288,25 @@ class TaskListener:
             self.aio_redis_connection_pool.close()
             await self.aio_redis_connection_pool.wait_closed()
 
-    async def _call_task(self, task):
+    async def _publish_task(self, task):
+        """publishes the task to the redis channel"""
         with (await self.get_redis_connection()) as con:
             await con.publish(self.queue_name,
                               task.pack())
 
-    def call_task(self, function, *args):
+    def _call_task(self, task):
+        """used to prevent the creation of a coroutine before the task actually gets called"""
+        return asyncio.ensure_future(self._publish_task(task))
+
+    def call_task(self, function, *args, delay=None):
         task_id = uuid.uuid4().hex
         task = self._tasks[task_id] = Task(task_id, function, *args)
-        task._calling_task = asyncio.ensure_future(self._call_task(task))
+        loop = asyncio.get_event_loop()
+        fn = partial(self._call_task, task)
+        if delay:
+            task._calling_task = loop.call_later(delay, fn)
+        else:
+            task._calling_task = loop.call_soon(fn)
         return task
 
 class TaskDispatcher:
