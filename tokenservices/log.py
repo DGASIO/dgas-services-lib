@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import tornado.httpclient
 import urllib
@@ -79,3 +80,27 @@ def configure_logger(logger, send_to_slack=True):
         for handler in log.handlers:
             if isinstance(handler, SlackLogHandler):
                 logger.addHandler(handler)
+
+def log_headers_on_error(func=None):
+    def wrap(fn):
+
+        async def wrapper(self, *args, **kwargs):
+
+            try:
+                f = fn(self, *args, **kwargs)
+                if asyncio.iscoroutine(f):
+                    f = await f
+                return f
+            except:
+
+                if hasattr(self, 'request'):
+                    headers = "\n".join("{}: {}".format(header, value) for header, value in self.request.headers.items())
+                    log.info("Headers for ERROR in {}\n{}\nData: {}".format(self.request.path, headers, self.request.body[:128]))
+                raise
+
+        return wrapper
+
+    if func is not None:
+        return wrap(func)
+    else:
+        return wrap
