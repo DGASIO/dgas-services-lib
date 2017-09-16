@@ -19,6 +19,8 @@ from tokenservices.request import sign_request
 
 from tokenservices.handlers import TOKEN_TIMESTAMP_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_ID_ADDRESS_HEADER
 
+from tokenservices.test.analytics import MockMixpanel
+
 logging.basicConfig()
 
 class TokenWebSocketJsonRPCClient:
@@ -130,7 +132,6 @@ class TokenWebSocketJsonRPCClient:
             result = tornado.escape.json_decode(result)
         return result
 
-
 class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
 
     APPLICATION_CLASS = Application
@@ -157,7 +158,15 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
         super(AsyncHandlerTest, self).setUp()
 
     def get_app(self):
-        return self.APPLICATION_CLASS(self.get_urls(), config=self._config, autoreload=False)
+        app = self.APPLICATION_CLASS(self.get_urls(), config=self._config, autoreload=False)
+        if app.mixpanel_instance is None:
+            app.mixpanel_instance = MockMixpanel()
+        return app
+
+    def next_tracking_event(self):
+        if not isinstance(self._app.mixpanel_instance, MockMixpanel):
+            raise Exception("Can only test tracking events without configuration")
+        return self._app.mixpanel_instance.events.get()
 
     def get_urls(self):
         raise NotImplementedError

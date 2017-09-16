@@ -9,6 +9,7 @@ from .utils import validate_signature, validate_address, parse_int
 from .request import generate_request_signature_data_string
 from .ethereum.utils import data_decoder, ecrecover
 from .errors import JSONHTTPError
+from .analytics import encode_id
 from .log import log
 
 DEFAULT_JSON_ARGUMENT = object()

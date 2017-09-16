@@ -24,6 +24,7 @@ setup(
         'testing.postgresql',
         'testing.redis',
         'asyncpg',
+        'mixpanel==4.3.2',
         'redis',
         'msgpack-python',
         'aioredis'

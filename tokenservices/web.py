@@ -70,6 +70,15 @@ class ConfigurationManager:
         if 'COOKIE_SECRET' in os.environ:
             config['general']['cookie_secret'] = os.environ['COOKIE_SECRET']
 
+        if 'ENFORCE_HTTPS' in os.environ:
+            mode = os.environ['ENFORCE_HTTPS']
+            if mode not in ['reject', 'redirect']:
+                mode = 'redirect'
+            config['general']['enforce_https'] = mode
+
+        if 'MIXPANEL_TOKEN' in os.environ:
+            config.setdefault('mixpanel', SectionProxy(config, 'mixpanel'))['token'] = os.environ['MIXPANEL_TOKEN']
+
         if 'SLACK_LOG_URL' in os.environ:
             config.setdefault('logging', SectionProxy(config, 'logging'))['slack_webhook_url'] = os.environ['SLACK_LOG_URL']
         if 'logging' in config and 'slack_webhook_url' in config['logging']:
@@ -84,12 +93,6 @@ class ConfigurationManager:
 
         if 'LOG_LEVEL' in os.environ:
             config.setdefault('logging', SectionProxy(config, 'logging'))['level'] = os.environ['LOG_LEVEL']
-
-        if 'ENFORCE_HTTPS' in os.environ:
-            mode = os.environ['ENFORCE_HTTPS']
-            if mode not in ['reject', 'redirect']:
-                mode = 'redirect'
-            config['general']['enforce_https'] = mode
 
         if 'logging' in config and 'level' in config['logging']:
             level = getattr(logging, config['logging']['level'].upper(), None)
@@ -142,6 +145,18 @@ class Application(ConfigurationManager, tornado.web.Application):
                       if 'executor' in self.config and 'max_workers' in self.config['executor'] \
                       else None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+        if 'mixpanel' in self.config and 'token' in self.config['mixpanel']:
+            try:
+                from tokenservices.analytics import TornadoMixpanelConsumer
+                import mixpanel
+                self.mixpanel_consumer = TornadoMixpanelConsumer()
+                self.mixpanel_instance = mixpanel.Mixpanel(self.config['mixpanel']['token'], consumer=self.mixpanel_consumer)
+            except:
+                log.warning("Mixpanel is configured, but the mixpanel-python library hasn't been installed")
+                self.mixpanel_instance = None
+        else:
+            self.mixpanel_instance = None
 
     def start(self):
         self.listen(tornado.options.options.port, xheaders=True)
