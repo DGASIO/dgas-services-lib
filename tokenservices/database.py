@@ -51,11 +51,16 @@ def create_pool(dsn=None, *,
                     max_queries=max_queries, loop=loop, setup=setup,
                     **connect_kwargs)
 
-async def prepare_database(db_config):
+async def prepare_database(db_config, handle_migration=True):
+    """If handle_migration is False, will instead wait until the database's
+    version matches the expected"""
 
     connection_pool = await create_pool(**db_config)
     async with connection_pool.acquire() as con:
-        await create_tables(con)
+        if handle_migration:
+            await create_tables(con)
+        else:
+            await wait_for_migration(con)
 
     return connection_pool
 
@@ -125,6 +130,38 @@ async def create_tables(con):
     await con.execute("UPDATE database_version SET version_number = $1", version)
     if exception:
         raise exception
+
+async def wait_for_migration(con, poll_frequency=1):
+    """finds the latest expected database version and only exits once the current
+    version in the database matches. Use for sub processes that depend on a main
+    process handling database migration"""
+
+    if not os.path.exists("sql/create_tables.sql"):
+        log.warning("Missing sql/create_tables.sql: cannot initialise database")
+        return
+
+    version = 0
+    while True:
+        version += 1
+        if not os.path.exists("sql/migrate_{:08}.sql".format(version)):
+            version -= 1
+            break
+
+    while True:
+        try:
+            row = await con.fetchrow("SELECT version_number FROM database_version LIMIT 1")
+            if version == row['version_number']:
+                break
+        except asyncpg.exceptions.UndefinedTableError:
+            # if this happens, it could just be the first time starting the app,
+            # just keep waiting
+            pass
+        log.info("waiting for database migration...".format(version))
+        # wait some time before checking again
+        await asyncio.sleep(poll_frequency)
+    # done!
+    log.info("got database version: {}".format(version))
+    return
 
 class HandlerDatabasePoolContext():
 

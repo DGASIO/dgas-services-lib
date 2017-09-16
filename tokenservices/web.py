@@ -108,13 +108,13 @@ class ConfigurationManager:
 
         return config
 
-    def prepare_databases(self):
+    def prepare_databases(self, handle_migration=True):
 
         self.asyncio_loop = asyncio.get_event_loop()
         if 'database' in self.config:
             from .database import prepare_database
             self.connection_pool = self.asyncio_loop.run_until_complete(
-                prepare_database(self.config['database']))
+                prepare_database(self.config['database'], handle_migration))
         else:
             self.connection_pool = None
 
