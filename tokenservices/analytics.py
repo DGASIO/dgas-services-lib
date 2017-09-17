@@ -91,3 +91,7 @@ class AnalyticsMixin:
     def track(self, token_id, event, data=None):
         if self.application.mixpanel_instance:
             self.application.mixpanel_instance.track(encode_id(token_id), event, data)
+
+    def people_set(self, token_id, data=None):
+        if self.application.mixpanel_instance:
+            self.application.mixpanel_instance.people_set(encode_id(token_id), data)
