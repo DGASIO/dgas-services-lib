@@ -14,6 +14,7 @@ setup(
         'regex',
         'tornado==4.5.1',
         'ethereum',
+        'secp256k1'
     ],
     dependency_links=[
     ],
