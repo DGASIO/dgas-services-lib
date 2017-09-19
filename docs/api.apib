@@ -1,6 +1,6 @@
 FORMAT: 1A
 
-# Token Service General concepts
+# Dgas Service General concepts
 
 ## Generating signatures
 
@@ -52,20 +52,20 @@ Now that the signature has been created the final step is to add some headers to
 
 | HTTP header variable name | Description                                                               |
 |---------------------------|---------------------------------------------------------------------------|
-| Token-Timestamp           | This is the same timestamp that was used when creating the payload.       |
-| Token-Signature           | The signature that we created                                             |
-| Token-ID-Address          | The address of the private key that was used to create the signature      |
+| Dgas-Timestamp           | This is the same timestamp that was used when creating the payload.       |
+| Dgas-Signature           | The signature that we created                                             |
+| Dgas-ID-Address          | The address of the private key that was used to create the signature      |
 
 #### Example
 
 ```
 POST /v1/user HTTP/1.1
-    Host: token-id-service.herokuapp.com
+    Host: identity.services.dgasio.com
     Content-Type: application/json
     Content-Length: 92
-    Token-Timestamp: 1480078657
-    Token-Signature: 0xcffb17822a12e6077db1b529e5bcfd666dfa4c057dd97435064dc04d9a06b4cc23c6eb1c2f4721131ff2996b8c20e586008c1417c1e75b85a52ba846554808dc00
-    Token-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
+    Dgas-Timestamp: 1480078657
+    Dgas-Signature: 0xcffb17822a12e6077db1b529e5bcfd666dfa4c057dd97435064dc04d9a06b4cc23c6eb1c2f4721131ff2996b8c20e586008c1417c1e75b85a52ba846554808dc00
+    Dgas-ID-Address: 0x056db290f8ba3250ca64a45d16284d04bc6f5fbf
 ```
 
 **N.B.** If the given `timestamp` is too far away from the current time (within a few seconds) the request will be rejected.

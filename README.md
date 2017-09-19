@@ -1,3 +1,3 @@
-# Token services library
+# Dgas services library
 
-Provides common logic used between the different token services
+Provides common logic used between the different dgas services

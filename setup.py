@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(
-    name='token-services',
+    name='dgas-services',
     version='0.0.1',
     author='Tristan King',
     author_email='mars.king@gmail.com',
-    packages=['tokenservices'],
+    packages=['dgas'],
     url='http://raneeli.com:dgasio/dgasio/dgas-services-lib',
     description='',
     long_description=open('README.md').read(),
@@ -13,7 +13,7 @@ setup(
     install_requires=[
         'regex',
         'tornado==4.5.1',
-        'ethereum',
+        'ethereum==2.0.4',
         'secp256k1'
     ],
     dependency_links=[
@@ -28,6 +28,6 @@ setup(
         'mixpanel==4.3.2',
         'redis',
         'msgpack-python',
-        'aioredis'
+        'aioredis==0.3.2'
     ]
 )
