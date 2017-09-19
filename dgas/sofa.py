@@ -28,7 +28,7 @@ class QofpBase:
 
 class QofpPayment(QofpBase):
 
-    def __init__(self, status=None, txHash=None, value=None, fromAddress=None, toAddress=None):
+    def __init__(self, status=None, txHash=None, value=None, fromAddress=None, toAddress=None, networkId=None):
 
         super().__init__("Payment")
 
@@ -37,10 +37,11 @@ class QofpPayment(QofpBase):
         self['value'] = value
         self['fromAddress'] = fromAddress
         self['toAddress'] = toAddress
+        self['networkId'] = networkId
 
     def __setitem__(self, key, value):
 
-        if key not in ('status', 'txHash', 'value', 'tx_hash', 'hash', 'fromAddress', 'toAddress'):
+        if key not in ('status', 'txHash', 'value', 'tx_hash', 'hash', 'fromAddress', 'toAddress', 'networkId'):
             raise KeyError(key)
         if key == 'tx_hash' or key == 'hash':
             key = 'txHash'
@@ -50,7 +51,7 @@ class QofpPayment(QofpBase):
         return super().__setitem__(key, value)
 
     @classmethod
-    def from_transaction(cls, tx):
+    def from_transaction(cls, tx, networkId=None):
         """converts a dictionary with transaction data as returned by a
         ethereum node into a qofp payment message"""
 
@@ -62,7 +63,8 @@ class QofpPayment(QofpBase):
             else:
                 status = "confirmed"
             return QofpPayment(value=tx['value'], txHash=tx['hash'], status=status,
-                               fromAddress=tx['from'], toAddress=tx['to'])
+                               fromAddress=tx['from'], toAddress=tx['to'],
+                               networkId=networkId)
         else:
             raise TypeError("Unable to create QOFP::Payment from type '{}'".format(type(tx)))
 

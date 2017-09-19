@@ -873,7 +873,8 @@ class GethServer(Database):
     def dsn(self, **kwargs):
         dsn = {
             'node': 'enode://{}@127.0.0.1:{}'.format(self.public_key, self.settings['port']),
-            'url': "http://localhost:{}/".format(self.settings['rpcport'])
+            'url': "http://localhost:{}/".format(self.settings['rpcport']),
+            'network_id': "66"
         }
         if self.settings['ws'] is not None:
             dsn['ws'] = 'ws://localhost:{}'.format(self.settings['wsport'])

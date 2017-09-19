@@ -122,7 +122,8 @@ class ParityServer(Database):
 
     def dsn(self, **kwargs):
         return {'node': 'enode://{}@127.0.0.1:{}'.format(self.public_key, self.settings['port']),
-                'url': "http://localhost:{}/".format(self.settings['rpcport'])}
+                'url': "http://localhost:{}/".format(self.settings['rpcport']),
+                'network_id': "66"}
 
     def get_data_directory(self):
         return os.path.join(self.base_dir, 'data')
