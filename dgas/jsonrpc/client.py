@@ -278,3 +278,7 @@ class JsonRPCClient:
 
         result = await self._fetch("web3_clientVersion", [])
         return result
+
+    async def net_version(self):
+
+        return (await self._fetch("net_version", []))
