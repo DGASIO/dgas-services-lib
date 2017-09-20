@@ -159,6 +159,8 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
 
     def get_app(self):
         app = self.APPLICATION_CLASS(self.get_urls(), config=self._config, autoreload=False)
+        # manually add asyncio_loop since process_config isn't called in tests
+        app.asyncio_loop = asyncio.get_event_loop()
         if app.mixpanel_instance is None:
             app.mixpanel_instance = MockMixpanel()
         return app

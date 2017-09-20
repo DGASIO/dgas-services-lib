@@ -36,6 +36,8 @@ class ConfigurationManager:
         if os.path.exists(tornado.options.options.config):
             config.read(tornado.options.options.config)
 
+        self.asyncio_loop = asyncio.get_event_loop()
+
         # verify config and set default values
         if 'general' not in config:
             config['general'] = {'debug': 'false'}
@@ -110,7 +112,6 @@ class ConfigurationManager:
 
     def prepare_databases(self, handle_migration=True):
 
-        self.asyncio_loop = asyncio.get_event_loop()
         if 'database' in self.config:
             from .database import prepare_database
             self.connection_pool = self.asyncio_loop.run_until_complete(
