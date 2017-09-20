@@ -17,14 +17,19 @@ def address_decoder(data):
         raise Exception('Addresses must be 20 or 0 bytes long')
     return addr
 
-def create_transaction(*, nonce, gasprice, startgas, to, value, data=b'', v=0, r=0, s=0):
+def create_transaction(*, nonce, gasprice, startgas, to, value, data=b'', v=None, r=None, s=None, network_id=None):
 
     if to:
         to = address_decoder(to)
     else:
         to = b''
 
-    tx = Transaction(nonce, gasprice, startgas, to, value, data, v, r, s)
+    if network_id is not None:
+        if r is not None or s is not None:
+            raise Exception("cannot set network id at the same time as r and s values")
+        v = network_id
+
+    tx = Transaction(nonce, gasprice, startgas, to, value, data, v or 0, r or 0, s or 0)
     tx._sender = None
 
     return tx
@@ -33,11 +38,12 @@ def is_transaction_signed(tx):
     # TODO: is there a better way to know if it's signed or not?
     if not hasattr(tx, 'v'):
         return False
-    return not (tx.v == 0 and tx.r == 0 and tx.s == 0)
+    # NOTE: v can be non zero if a network id is present
+    return not (tx.r == 0 and tx.s == 0)
 
 def encode_transaction(tx):
-
-    if not is_transaction_signed(tx):
+    # if there is no network id and the tx is unsigned
+    if not hasattr(tx, 'v') or (hasattr(tx, 'v') and tx.v == 0 and tx.r == 0 and tx.s == 0):
         cls = UnsignedTransaction
     else:
         cls = Transaction
@@ -55,9 +61,11 @@ def decode_transaction(tx):
     except rlp.exceptions.ObjectDeserializationError:
         tx = rlp.decode(tx, UnsignedTransaction)
 
+    tx.make_mutable()
+
     return tx
 
-def sign_transaction(tx, key):
+def sign_transaction(tx, key, network_id=None):
 
     return_type = None
     if isinstance(tx, str):
@@ -65,14 +73,20 @@ def sign_transaction(tx, key):
         tx = data_decoder(tx)
     if isinstance(tx, bytes):
         return_type = bytes if return_type is None else return_type
-        tx = rlp.decode(tx, UnsignedTransaction)
+        tx = decode_transaction(tx)
     if not isinstance(tx, (Transaction, UnsignedTransaction)):
         raise Exception("Expected Transaction object or rlp encoded string representing a Transaction")
 
     if isinstance(key, str):
         key = data_decoder(key)
 
-    tx.sign(key)
+    if network_id is None and hasattr(tx, 'v'):
+        # see if there is a network_id in the tx
+        if tx.r == 0 and tx.s == 0 and tx.v != 0:
+            network_id = tx.network_id
+
+    tx.sign(key, network_id=network_id)
+    tx._cached_rlp = None
 
     if return_type == str:
         return encode_transaction(tx)
@@ -95,7 +109,12 @@ def signature_from_transaction(tx):
     if len(p2) < 32:
         p2 = bytes([0] * (32 - len(p2))) + p2
 
-    signature = p1 + p2 + bytes([tx.v - 27])
+    if tx.v >= 37:
+        vee = tx.v - tx.network_id * 2 - 8
+    else:
+        vee = tx.v
+
+    signature = p1 + p2 + bytes([vee - 27])
     return signature
 
 def add_signature_to_transaction(tx, signature):
@@ -109,9 +128,19 @@ def add_signature_to_transaction(tx, signature):
     if isinstance(signature, str):
         signature = data_decoder(signature)
 
-    tx.v = safe_ord(signature[64]) + 27
+    if hasattr(tx, 'v') and tx.v > 1:
+        if tx.r == 0 and tx.s == 0:
+            vee = 8 + tx.v * 2
+        else:
+            raise Exception("transaction is already signed")
+    else:
+        vee = 0
+
+    tx.v = safe_ord(signature[64]) + 27 + vee
     tx.r = big_endian_to_int(signature[0:32])
     tx.s = big_endian_to_int(signature[32:64])
+    if tx._cached_rlp:
+        tx._cached_rlp = None
 
     if encode_at_end:
         return encode_transaction(tx)
@@ -124,7 +153,7 @@ def calculate_transaction_hash(tx):
     if isinstance(tx, str):
         tx = decode_transaction(tx)
 
-    if not is_transaction_signed(tx):
+    if not hasattr(tx, 'v') or (hasattr(tx, 'v') and tx.v == 0 and tx.r == 0 and tx.s == 0):
         cls = UnsignedTransaction
     else:
         cls = Transaction
