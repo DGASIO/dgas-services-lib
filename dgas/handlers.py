@@ -134,8 +134,11 @@ class JsonBodyMixin:
     @property
     def json(self):
         if not hasattr(self, '_json'):
-            data = self.request.body.decode('utf-8').strip()
-            self._json = tornado.escape.json_decode(data) if data else {}
+            if self.request.headers['Content-Type'] == 'application/json':
+                data = self.request.body.decode('utf-8').strip()
+                self._json = tornado.escape.json_decode(data) if data else {}
+            else:
+                self._json = {}
         return self._json
 
     def get_json_argument(self, name, default=DEFAULT_JSON_ARGUMENT):
