@@ -45,7 +45,8 @@ class SendEventHandler(analytics.AnalyticsMixin, RequestVerificationMixin, BaseH
             dgas_id = self.verify_request()
         else:
             dgas_id = None
-        self.track(dgas_id, "Event", {"property": "property"})
+        self.track(dgas_id, "Event", {"property": "property"},
+                   add_user_agent=not bool(self.get_query_argument("no_user_agent", None)))
         self.set_status(204)
 
 class AnalyticsTest(AsyncHandlerTest):
@@ -125,3 +126,9 @@ class MockAnalyticsTest(AsyncHandlerTest):
         self.assertEqual(distinct_id, None)
         self.assertIsNotNone(data)
         self.assertIn("User-Agent", data)
+
+        result = await self.fetch("/?no_user_agent=1")
+        distinct_id, event_name, data, _ = await self.next_tracking_event()
+        self.assertEqual(distinct_id, None)
+        self.assertIsNotNone(data)
+        self.assertNotIn("User-Agent", data)
