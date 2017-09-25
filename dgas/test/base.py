@@ -178,8 +178,15 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
 
     def fetch(self, req, **kwargs):
         if 'body' in kwargs and isinstance(kwargs['body'], dict):
-            kwargs.setdefault('headers', {})['Content-Type'] = "application/json"
-            kwargs['body'] = tornado.escape.json_encode(kwargs['body'])
+            headers = kwargs.setdefault('headers', {})
+            encode_body = False
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = "application/json"
+                encode_body = True
+            elif headers['Content-Type'].startswith("application/json"):
+                encode_body = True
+            if encode_body and isinstance(kwargs['body'], (dict, list, str)):
+                kwargs['body'] = tornado.escape.json_encode(kwargs['body'])
         # default raise_error to false
         if 'raise_error' not in kwargs:
             kwargs['raise_error'] = False

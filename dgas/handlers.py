@@ -11,6 +11,7 @@ from .ethereum.utils import data_decoder, ecrecover
 from .errors import JSONHTTPError
 from .analytics import encode_id
 from .log import log
+from json import JSONDecodeError
 
 DEFAULT_JSON_ARGUMENT = object()
 
@@ -134,9 +135,16 @@ class JsonBodyMixin:
     @property
     def json(self):
         if not hasattr(self, '_json'):
-            if self.request.headers['Content-Type'] == 'application/json':
-                data = self.request.body.decode('utf-8').strip()
-                self._json = tornado.escape.json_decode(data) if data else {}
+            mimetype = self.request.headers['Content-Type'].lower()
+            if mimetype.startswith('application/json'):
+                encoding = 'utf-8'
+                if mimetype[16:].startswith("; charset="):
+                    encoding = mimetype[26:]
+                try:
+                    data = self.request.body.decode(encoding).strip()
+                    self._json = tornado.escape.json_decode(data) if data else {}
+                except (LookupError, UnicodeDecodeError, JSONDecodeError):
+                    self._json = {}
             else:
                 self._json = {}
         return self._json
