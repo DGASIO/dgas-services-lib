@@ -89,6 +89,11 @@ def encode_id(dgas_id):
 class AnalyticsMixin:
 
     def track(self, dgas_id, event, data=None):
+        if hasattr(self, 'request') and hasattr(self.request, 'headers') and 'User-Agent' in self.request.headers:
+            agent = self.request.headers['User-Agent']
+            if data is None:
+                data = {}
+            data["User-Agent"] = agent
         if self.application.mixpanel_instance:
             self.application.mixpanel_instance.track(encode_id(dgas_id), event, data)
 

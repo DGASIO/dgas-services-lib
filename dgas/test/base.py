@@ -51,6 +51,7 @@ class DgasWebSocketJsonRPCClient:
         signature = sign_request(self.signing_key, "GET", path, timestamp, None)
 
         request = tornado.httpclient.HTTPRequest(self.url, headers={
+            'User-Agent': 'Dgas-Test-Websocket-Client',
             TOSHI_ID_ADDRESS_HEADER: address,
             TOSHI_SIGNATURE_HEADER: signature,
             TOSHI_TIMESTAMP_HEADER: str(timestamp)
@@ -177,8 +178,10 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
         super(AsyncHandlerTest, self).tearDown()
 
     def fetch(self, req, **kwargs):
+        headers = kwargs.setdefault('headers', {})
+        if 'User-Agent' not in headers:
+            headers['User-Agent'] = "Test-User-Agent"
         if 'body' in kwargs and isinstance(kwargs['body'], dict):
-            headers = kwargs.setdefault('headers', {})
             encode_body = False
             if 'Content-Type' not in headers:
                 headers['Content-Type'] = "application/json"

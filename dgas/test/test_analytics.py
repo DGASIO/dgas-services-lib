@@ -123,3 +123,5 @@ class MockAnalyticsTest(AsyncHandlerTest):
         self.assertEqual(result.code, 204)
         distinct_id, event_name, data, _ = await self.next_tracking_event()
         self.assertEqual(distinct_id, None)
+        self.assertIsNotNone(data)
+        self.assertIn("User-Agent", data)
