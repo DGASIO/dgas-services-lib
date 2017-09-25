@@ -84,7 +84,7 @@ class ParityServer(Database):
                             author="0x0102030405060708090001020304050607080900",
                             faucet=FAUCET_ADDRESS,
                             port=None,
-                            rpcport=None,
+                            jsonrpc_port=None,
                             bootnodes=None,
                             node_key=None,
                             no_dapps=False,
@@ -122,7 +122,7 @@ class ParityServer(Database):
 
     def dsn(self, **kwargs):
         return {'node': 'enode://{}@127.0.0.1:{}'.format(self.public_key, self.settings['port']),
-                'url': "http://localhost:{}/".format(self.settings['rpcport']),
+                'url': "http://localhost:{}/".format(self.settings['jsonrpc_port']),
                 'network_id': "66"}
 
     def get_data_directory(self):
@@ -131,10 +131,10 @@ class ParityServer(Database):
     def prestart(self):
         super(ParityServer, self).prestart()
 
-        if self.settings['rpcport'] is None:
-            self.settings['rpcport'] = get_unused_port()
+        if self.settings['jsonrpc_port'] is None:
+            self.settings['jsonrpc_port'] = get_unused_port()
 
-        if self.settings['no_dapps'] is False and self.settings['dapps_port'] is None:
+        if self.version < (1, 7, 0) and self.settings['no_dapps'] is False and self.settings['dapps_port'] is None:
             self.settings['dapps_port'] = get_unused_port()
 
         if self.settings['node_key'] is None:
@@ -154,7 +154,6 @@ class ParityServer(Database):
         cmd = [self.parity_server,
                "--no-ui",
                "--port", str(self.settings['port']),
-               "--rpcport", str(self.settings['rpcport']),
                "--datadir", self.get_data_directory(),
                "--no-color",
                "--chain", self.chainfile,
@@ -162,9 +161,17 @@ class ParityServer(Database):
                "--tracing", 'on',
                "--node-key", self.settings['node_key']]
 
+        # check version
+        if self.version >= (1, 7, 0):
+            cmd.extend(["--jsonrpc-port", str(self.settings['jsonrpc_port']),
+                        "--jsonrpc-hosts", "all",
+                        "--no-ws"])
+        else:
+            cmd.extend(["--rpcport", str(self.settings['jsonrpc_port'])])
+
         if self.settings['no_dapps']:
             cmd.extend(['--no-dapps'])
-        else:
+        elif self.version < (1, 7, 0):
             cmd.extend(['--dapps-port', str(self.settings['dapps_port'])])
 
         if self.settings['bootnodes'] is not None:
@@ -184,7 +191,7 @@ class ParityServer(Database):
                 body=tornado.escape.json_encode({
                     "jsonrpc": "2.0",
                     "id": "1234",
-                    "method": "POST",
+                    "method": "eth_getBalance",
                     "params": ["0x{}".format(self.author), "latest"]
                 })
             )
