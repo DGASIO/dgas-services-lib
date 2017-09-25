@@ -2,7 +2,7 @@ import asyncio
 import testing.postgresql
 from dgas.database import prepare_database
 
-POSTGRESQL_FACTORY = testing.postgresql.PostgresqlFactory(cache_initialized_db=True)
+POSTGRESQL_FACTORY = testing.postgresql.PostgresqlFactory(cache_initialized_db=True, auto_start=False)
     #postgres_args="-h 127.0.0.1 -F -c logging_collector=on -c log_directory=/tmp/log -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log -c log_statement=all")
 
 def requires_database(func=None):
@@ -13,6 +13,12 @@ def requires_database(func=None):
         async def wrapper(self, *args, **kwargs):
 
             psql = POSTGRESQL_FACTORY()
+            # this fixes a regression in the testing.commons library that causes
+            # the setup method to be called multiple times when `cache_initialize_db`
+            # is used without an init_handler
+            psql.setup()
+            psql.start()
+
             self.pool = self._app.connection_pool = await prepare_database(psql.dsn())
 
             self._app.config['database'] = psql.dsn()
