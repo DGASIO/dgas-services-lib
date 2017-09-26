@@ -60,6 +60,9 @@ class DgasWebSocketJsonRPCClient:
         self.con = await tornado.websocket.websocket_connect(request)
         return self.con
 
+    def close(self):
+        self.con.close()
+
     async def handle_calls(self, call_id, future):
         if call_id in self.calls:
             raise Exception("Already waiting for a response to call with id: {}".format(call_id))
