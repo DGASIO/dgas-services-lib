@@ -11,10 +11,12 @@ from dgas.utils import parse_int, validate_address
 from dgas.clients import EthereumServiceClient
 from dgas.ethereum.utils import data_decoder, data_encoder
 from dgas.ethereum.tx import (
-    DEFAULT_STARTGAS, DEFAULT_GASPRICE, create_transaction,
+    DEFAULT_STARTGAS, create_transaction,
     encode_transaction, decode_transaction,
     add_signature_to_transaction
 )
+
+DEFAULT_GASPRICE = 20000000000
 
 class MockEthereumServiceRequestHandler(BaseHTTPRequestHandler):
 

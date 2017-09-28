@@ -8,7 +8,7 @@ from .utils import data_decoder, data_encoder
 
 # TODO: do these make sense? (they were taken from geth, so i hope so!)
 DEFAULT_STARTGAS = 21000
-DEFAULT_GASPRICE = 20000000000
+DEFAULT_GASPRICE = 4000000000
 
 def address_decoder(data):
     """Decode an address from hex with 0x prefix to 20 bytes."""

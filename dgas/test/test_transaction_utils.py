@@ -35,7 +35,7 @@ class TestTransactionUtils(unittest.TestCase):
         value = 10000000000
         nonce = 1048576
         data = b''
-        gasprice = DEFAULT_GASPRICE
+        gasprice = 20000000000
         startgas = DEFAULT_STARTGAS
         expected_tx_hash = "0x2f321aa116146a9bc62b61c76508295f708f42d56340c9e613ebfc27e33f240c"
 
