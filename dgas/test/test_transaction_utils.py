@@ -2,7 +2,8 @@ import unittest
 from dgas.ethereum.tx import (
     add_signature_to_transaction, encode_transaction, decode_transaction,
     DEFAULT_STARTGAS, DEFAULT_GASPRICE, create_transaction,
-    is_transaction_signed
+    is_transaction_signed, signature_from_transaction,
+    calculate_transaction_hash
 )
 from dgas.ethereum.utils import data_decoder, data_encoder
 from ethereum.transactions import Transaction, UnsignedTransaction
@@ -63,3 +64,36 @@ class TestTransactionUtils(unittest.TestCase):
         # if this suddenly starts failing, it means the behaviour
         # has been modified in the library
         self.assertNotEqual(data_encoder(tx2.hash), expected_tx_hash)
+
+    def test_add_signature_to_transaction_with_netowrk_id(self):
+
+        for network_id in [1, 2, 66, 100]:
+
+            sender_private_key = "0x0164f7c7399f4bb1eafeaae699ebbb12050bc6a50b2836b9ca766068a9d000c0"
+            sender_address = "0xde3d2d9dd52ea80f7799ef4791063a5458d13913"
+            to_address = "0x056db290f8ba3250ca64a45d16284d04bc6f5fbf"
+            value = 10000000000
+            nonce = 1048576
+            data = b''
+            gasprice = DEFAULT_GASPRICE
+            startgas = DEFAULT_STARTGAS
+            network_id = 1
+
+            tx1 = Transaction(nonce, gasprice, startgas, to_address, value, data, network_id, 0, 0)
+            tx = encode_transaction(tx1)
+            tx1.sign(data_decoder(sender_private_key), network_id=network_id)
+            expected_signed_tx = encode_transaction(tx1)
+            sig = data_encoder(signature_from_transaction(tx1))
+
+            signed_tx = add_signature_to_transaction(tx, sig)
+
+            self.assertEqual(signed_tx, expected_signed_tx)
+
+            tx_obj = decode_transaction(tx)
+
+            add_signature_to_transaction(tx_obj, sig)
+
+            self.assertEqual(tx_obj.network_id, network_id)
+            self.assertEqual(data_encoder(tx_obj.sender), sender_address)
+
+            self.assertEqual(encode_transaction(tx_obj), expected_signed_tx)

@@ -128,15 +128,15 @@ def add_signature_to_transaction(tx, signature):
     if isinstance(signature, str):
         signature = data_decoder(signature)
 
-    if hasattr(tx, 'v') and tx.v > 1:
+    if hasattr(tx, 'v') and tx.network_id is not None:
         if tx.r == 0 and tx.s == 0:
-            vee = 8 + tx.v * 2
+            vee = 35 + tx.network_id * 2
         else:
             raise Exception("transaction is already signed")
     else:
-        vee = 0
+        vee = 27
 
-    tx.v = safe_ord(signature[64]) + 27 + vee
+    tx.v = safe_ord(signature[64]) + vee
     tx.r = big_endian_to_int(signature[0:32])
     tx.s = big_endian_to_int(signature[32:64])
     if tx._cached_rlp:
