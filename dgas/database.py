@@ -165,10 +165,9 @@ async def wait_for_migration(con, poll_frequency=1):
 
 class HandlerDatabasePoolContext():
 
-    __slots__ = ('timeout', 'handler', 'connection', 'transaction', 'autocommit', 'pool', 'done', 'callbacks')
+    __slots__ = ('timeout', 'connection', 'transaction', 'autocommit', 'pool', 'done', 'callbacks')
 
-    def __init__(self, handler, pool, autocommit=False, timeout=None):
-        self.handler = handler
+    def __init__(self, pool, autocommit=False, timeout=None):
         self.pool = pool
         self.timeout = timeout
         self.autocommit = autocommit
@@ -177,13 +176,19 @@ class HandlerDatabasePoolContext():
         self.done = False
         self.callbacks = []
 
+    def acquire(self, autocommit=None):
+        """creates a new context with the values of this one"""
+        if autocommit is None:
+            autocommit = self.autocommit
+        return HandlerDatabasePoolContext(self.pool, autocommit, self.timeout)
+
     async def __aenter__(self):
         if self.connection is not None:
             raise DatabaseError("Connection already in progress")
         self.connection = await self.pool.acquire(timeout=self.timeout)
         self.transaction = self.connection.transaction()
         await self.transaction.start()
-        return self.connection
+        return self
 
     async def __aexit__(self, extype, ex, tb):
         try:
@@ -308,5 +313,5 @@ class DatabaseMixin:
     @property
     def db(self):
         if not hasattr(self, '_dbcontext'):
-            self._dbcontext = HandlerDatabasePoolContext(self, self.application.connection_pool)
+            self._dbcontext = HandlerDatabasePoolContext(self.application.connection_pool)
         return self._dbcontext
