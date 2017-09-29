@@ -23,17 +23,16 @@ chaintemplate = Template("""{
     "engine": {
         "Ethash": {
             "params": {
-                "gasLimitBoundDivisor": "0x0400",
+                $extraEthashParams
                 "minimumDifficulty": "$difficulty",
                 "difficultyBoundDivisor": "0x0800",
                 "durationLimit": "0x0a",
-                "blockReward": "0x4563918244F40000",
-                "registrar": "",
                 "homesteadTransition": "0x0"
             }
         }
     },
     "params": {
+        $extraParams
         "accountStartNonce": "0x0100000",
         "maximumExtraDataSize": "0x20",
         "minGasLimit": "0x1388",
@@ -73,8 +72,16 @@ def write_chain_file(version, fn, faucet, difficulty):
         if not difficulty.startswith("0x"):
             difficulty = "0x{}".format(difficulty)
 
+    params = '"gasLimitBoundDivisor": "0x0400", "blockReward": "0x4563918244F40000",'
+    if version < (1, 8, 0):
+        extraEthashParams = params
+        extraParams = ""
+    else:
+        extraEthashParams = ""
+        extraParams = params
+
     with open(fn, 'w') as f:
-        f.write(chaintemplate.substitute(faucet=faucet, difficulty=difficulty))
+        f.write(chaintemplate.substitute(faucet=faucet, difficulty=difficulty, extraParams=extraParams, extraEthashParams=extraEthashParams))
 
 class ParityServer(Database):
 
