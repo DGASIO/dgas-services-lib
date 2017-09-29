@@ -3,6 +3,7 @@ import json
 from tornado.escape import json_decode
 
 from .errors import JsonRPCError, JsonRPCInvalidParamsError, JsonRPCInternalError
+from ..log import log
 
 def _parse_error(request, data=None):
     return {
@@ -111,6 +112,7 @@ class JsonRPCBase:
         except JsonRPCError as e:
             return e.format(request)
         except:
+            log.exception("Unexpected Error processing JSONRPC request. method: {}, params: {}".format(method, params))
             return JsonRPCInternalError(request=request).format()
 
         # handle notification requests
