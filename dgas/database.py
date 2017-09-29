@@ -5,17 +5,33 @@ from collections import ItemsView
 from .errors import DatabaseError
 from .log import log
 
-class SafePool(asyncpg.pool.Pool):
-    """changes the connection acquire implementation to deal with connections
-    disconnecting when not in use"""
+if hasattr(asyncpg.pool.Pool, '_acquire_impl'):
+    # pre 0.12.0 version
+    class SafePool(asyncpg.pool.Pool):
+        """changes the connection acquire implementation to deal with connections
+        disconnecting when not in use"""
 
-    async def _acquire_impl(self):
-        while True:
-            con = await super(SafePool, self)._acquire_impl()
-            if con.is_closed():
-                await self.release(con)
-            else:
-                return con
+        async def _acquire_impl(self):
+            while True:
+                con = await super(SafePool, self)._acquire_impl()
+                if con.is_closed():
+                    await self.release(con)
+                else:
+                    return con
+else:
+    # 0.12.0 version
+    class SafePool(asyncpg.pool.Pool):
+        """changes the connection acquire implementation to deal with connections
+        disconnecting when not in use"""
+
+        async def _acquire(self, timeout):
+            while True:
+                con = await super(SafePool, self)._acquire(timeout)
+                if con.is_closed():
+                    await self.release(con)
+                else:
+                    return con
+
 
 def create_pool(dsn=None, *,
                 min_size=10,
