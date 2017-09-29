@@ -1,9 +1,13 @@
+import asyncio
 import binascii
 import random
 import regex
 import tornado.httpclient
+import logging
 
 from .errors import JsonRPCError
+
+JSONRPC_LOG = logging.getLogger("dgas.jsonrpc.client")
 
 JSON_RPC_VERSION = "2.0"
 
@@ -34,10 +38,15 @@ def validate_block_param(param):
 
 class JsonRPCClient:
 
-    def __init__(self, url):
+    def __init__(self, url, should_retry=True, log=None):
 
         self._url = url
         self._httpclient = tornado.httpclient.AsyncHTTPClient()
+        if log is None:
+            self.log = JSONRPC_LOG
+        else:
+            self.log = log
+        self.should_retry = should_retry
 
     async def _fetch(self, method, params=None):
         id = random.randint(0, 1000000)
@@ -55,12 +64,24 @@ class JsonRPCClient:
         # NOTE: letting errors fall through here for now as it means
         # there is something drastically wrong with the jsonrpc server
         # which means something probably needs to be fixed
-        resp = await self._httpclient.fetch(
-            self._url,
-            method="POST",
-            headers={'Content-Type': "application/json"},
-            body=tornado.escape.json_encode(data)
-        )
+        retries = 0
+        while True:
+            try:
+                resp = await self._httpclient.fetch(
+                    self._url,
+                    method="POST",
+                    headers={'Content-Type': "application/json"},
+                    body=tornado.escape.json_encode(data)
+                )
+            except:
+                self.log.exception("Error in JsonRPCClient._fetch: retry {}".format(retries))
+                retries += 1
+                # give up after a "while"
+                if not self.should_retry or retries >= 600:
+                    raise
+                await asyncio.sleep(0.1)
+            else:
+                break
 
         rval = tornado.escape.json_decode(resp.body)
 
