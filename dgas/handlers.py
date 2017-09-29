@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+import datetime
 import os
 import regex
 import time
@@ -36,6 +38,8 @@ TOSHI_ID_ADDRESS_HEADER = "Dgas-ID-Address"
 TOSHI_TIMESTAMP_QUERY_ARG = "dgasTimestamp"
 TOSHI_SIGNATURE_QUERY_ARG = "dgasSignature"
 TOSHI_ID_ADDRESS_QUERY_ARG = "dgasIdAddress"
+
+CACHE_MAX_AGE_SECONDS = 1209600
 
 
 class RequestVerificationMixin:
@@ -205,3 +209,41 @@ class GenerateTimestamp(BaseHandler):
 
     def get(self):
         self.write({"timestamp": int(time.time())})
+
+
+class SimpleFileHandler(BaseHandler):
+    async def handle_file_response(self,
+                                   data,
+                                   content_type,
+                                   etag,
+                                   last_modified,
+                                   include_body=True):
+
+        last_modified = last_modified.replace(microsecond=0)
+        self.set_header("Etag", '"{}"'.format(etag))
+        self.set_header("Last-Modified", last_modified)
+        self.set_header("Content-type", content_type)
+        self.set_header("Content-length", len(data))
+        self.set_header("Cache-Control",
+                        "max-age={}, no-transform".format(CACHE_MAX_AGE_SECONDS))
+        self.set_header("Expires", datetime.datetime.utcnow()
+                        + datetime.timedelta(seconds=CACHE_MAX_AGE_SECONDS))
+
+        if self.request.headers.get("If-None-Match"):
+            # check etag
+            if self.check_etag_header():
+                # return 304
+                self.set_status(304)
+                return
+        else:
+            ims_value = self.request.headers.get("If-Modified-Since")
+            if ims_value is not None:
+                date_tuple = email.utils.parsedate(ims_value)
+                if date_tuple is not None:
+                    if_since = datetime.datetime(*date_tuple[:6])
+                    if if_since >= last_modified:
+                        self.set_status(304)
+                        return
+
+        if include_body:
+            self.write(data)
