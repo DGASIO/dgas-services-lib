@@ -18,11 +18,13 @@ from string import Template
 
 from .faucet import FAUCET_PRIVATE_KEY, FAUCET_ADDRESS
 
+from .ethminer import EthMiner
+
 ## generated using puppeth 1.6.0
 chaintemplate = Template("""
 {
   "config": {
-    "chainId": 44809,
+    "chainId": 66,
     "homesteadBlock": 1,
     "eip150Block": 2,
     "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -841,6 +843,7 @@ class GethServer(Database):
                             no_dapps=False,
                             dapps_port=None,
                             ws=None,
+                            mine=True,
                             difficulty=None,
                             copy_data_from=None)
 
@@ -926,8 +929,11 @@ class GethServer(Database):
                "--rpcapi", "eth,web3,personal,debug,admin,miner",
                "--datadir", self.get_data_directory(),
                "--etherbase", author,
-               "--mine", "--nat", "none", "--verbosity", "6",
+               "--nat", "none", "--verbosity", "6",
                "--nodekeyhex", self.settings['node_key']]
+
+        if self.settings['mine'] is True:
+            cmd.append("--mine")
 
         if self.settings['ws'] is not None:
             cmd.extend(['--ws', '--wsport', str(self.settings['wsport']), '--wsorigins', '*'])
@@ -967,7 +973,7 @@ class GethServer(Database):
 class GethServerFactory(DatabaseFactory):
     target_class = GethServer
 
-def requires_geth(func=None, pass_server=False, **server_kwargs):
+def requires_geth(func=None, pass_server=False, pass_ethminer=False, use_ethminer=False, **server_kwargs):
     """Used to ensure all database connections are returned to the pool
     before finishing the test"""
 
@@ -975,7 +981,16 @@ def requires_geth(func=None, pass_server=False, **server_kwargs):
 
         async def wrapper(self, *args, **kwargs):
 
+            if use_ethminer:
+                server_kwargs['mine'] = False
+
             geth = GethServer(**server_kwargs)
+
+            if use_ethminer:
+                ethminer = EthMiner(jsonrpc_url=geth.dsn()['url'],
+                                    debug=False)
+            else:
+                ethminer = None
 
             self._app.config['ethereum'] = geth.dsn()
 
@@ -984,12 +999,19 @@ def requires_geth(func=None, pass_server=False, **server_kwargs):
                     kwargs[pass_server] = geth
                 else:
                     kwargs['geth'] = geth
+            if pass_ethminer:
+                if pass_ethminer is True:
+                    kwargs['ethminer'] = ethminer
+                else:
+                    kwargs[pass_ethminer] = ethminer
 
             try:
                 f = fn(self, *args, **kwargs)
                 if asyncio.iscoroutine(f):
                     await f
             finally:
+                if ethminer:
+                    ethminer.stop()
                 geth.stop()
 
         return wrapper

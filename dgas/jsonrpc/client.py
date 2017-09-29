@@ -212,6 +212,24 @@ class JsonRPCClient:
 
         return result
 
+    async def eth_getLogs(self, fromBlock=None, toBlock=None, address=None, topics=None):
+
+        kwargs = {}
+        if fromBlock:
+            kwargs['fromBlock'] = validate_block_param(fromBlock)
+        if toBlock:
+            kwargs['toBlock'] = validate_block_param(toBlock)
+        if address:
+            kwargs['address'] = validate_hex(address)
+        if topics:
+            if not isinstance(topics, list):
+                raise TypeError("topics must be an array of DATA")
+            kwargs['topics'] = [None if i is None else validate_hex(i, 32) for i in topics]
+
+        result = await self._fetch("eth_getLogs", [kwargs])
+
+        return result
+
     async def eth_call(self, *, to_address, from_address=None, gas=None, gasprice=None, value=None, data=None, block="latest"):
 
         to_address = validate_hex(to_address)
