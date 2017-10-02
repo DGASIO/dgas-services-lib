@@ -28,20 +28,21 @@ class QofpBase:
 
 class QofpPayment(QofpBase):
 
-    def __init__(self, status=None, txHash=None, value=None, fromAddress=None, toAddress=None, networkId=None):
+    def __init__(self, status=None, txHash=None, value=None, currency=None, fromAddress=None, toAddress=None, networkId=None):
 
         super().__init__("Payment")
 
         self['status'] = status
         self['txHash'] = txHash
         self['value'] = value
+        self['currency'] = currency
         self['fromAddress'] = fromAddress
         self['toAddress'] = toAddress
         self['networkId'] = networkId
 
     def __setitem__(self, key, value):
 
-        if key not in ('status', 'txHash', 'value', 'tx_hash', 'hash', 'fromAddress', 'toAddress', 'networkId'):
+        if key not in ('status', 'txHash', 'value', 'currency', 'tx_hash', 'hash', 'fromAddress', 'toAddress', 'networkId'):
             raise KeyError(key)
         if key == 'tx_hash' or key == 'hash':
             key = 'txHash'
@@ -51,7 +52,7 @@ class QofpPayment(QofpBase):
         return super().__setitem__(key, value)
 
     @classmethod
-    def from_transaction(cls, tx, networkId=None):
+    def from_transaction(cls, tx, erc20=None, networkId=None):
         """converts a dictionary with transaction data as returned by a
         ethereum node into a qofp payment message"""
 
@@ -62,9 +63,17 @@ class QofpPayment(QofpBase):
                 status = "unconfirmed"
             else:
                 status = "confirmed"
-            return QofpPayment(value=tx['value'], txHash=tx['hash'], status=status,
-                               fromAddress=tx['from'], toAddress=tx['to'],
-                               networkId=networkId)
+            if erc20:
+                value = erc20['value']
+                to_address = erc20['to_address']
+                currency = erc20['symbol']
+            else:
+                value = tx['value']
+                to_address = tx['to']
+                currency = "ETH"
+            return QofpPayment(value=value, currency=currency, txHash=tx['hash'],
+                               fromAddress=tx['from'], toAddress=to_address,
+                               status=status, networkId=networkId)
         else:
             raise TypeError("Unable to create QOFP::Payment from type '{}'".format(type(tx)))
 
