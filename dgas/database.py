@@ -252,6 +252,12 @@ class HandlerDatabasePoolContext():
         else:
             raise DatabaseError("No transaction in progress")
 
+    def executemany(self, command: str, args, *, timeout: float=None):
+        if self.transaction:
+            return self.connection.executemany(command, args, timeout=timeout)
+        else:
+            raise DatabaseError("No transaction in progress")
+
     def fetch(self, query, *args, timeout=None):
         if self.transaction:
             return self.connection.fetch(query, *args, timeout=timeout)
