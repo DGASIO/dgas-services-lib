@@ -46,8 +46,11 @@ class QofpPayment(QofpBase):
             raise KeyError(key)
         if key == 'tx_hash' or key == 'hash':
             key = 'txHash'
-        if key == 'value' and isinstance(value, (int, float, Decimal)):
-            value = hex(value)
+        if key == 'value':
+            if isinstance(value, (int, float, Decimal)):
+                value = hex(value)
+            elif value[:2] != "0x":
+                raise ValueError("Expected number of hex string for value argument")
 
         return super().__setitem__(key, value)
 
