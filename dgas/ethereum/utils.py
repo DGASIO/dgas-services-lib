@@ -64,8 +64,11 @@ def ecrecover(msg, signature, address=None):
     """
     rawhash = sha3(msg)
 
+    if isinstance(signature, str):
+        signature = data_decoder(signature)
+
     if len(signature) >= 65:
-        v = safe_ord(signature[64]) + 27
+        v = safe_ord(signature[64])
         r = big_endian_to_int(signature[0:32])
         s = big_endian_to_int(signature[32:64])
     else:
@@ -74,13 +77,17 @@ def ecrecover(msg, signature, address=None):
         else:
             return None
 
+    # check if ethereum signature, and adjust the recovery id accordingly
+    if v == 27 or v == 28:
+        v -= 27
+
     pk = PublicKey(flags=ALL_FLAGS)
     pk.public_key = pk.ecdsa_recover(
         rawhash,
         pk.ecdsa_recoverable_deserialize(
             zpad(bytearray_to_bytestr(int_to_32bytearray(r)), 32) +
             zpad(bytearray_to_bytestr(int_to_32bytearray(s)), 32),
-            v - 27
+            v
         ),
         raw=True
     )
@@ -109,6 +116,25 @@ def sign_payload(private_key, payload):
     signature = signature[0] + bytearray_to_bytestr([signature[1]])
 
     return data_encoder(signature)
+
+def personal_sign(private_key, message):
+
+    if isinstance(private_key, str):
+        private_key = data_decoder(private_key)
+
+    rawhash = sha3("\x19Ethereum Signed Message:\n{}{}".format(len(message), message))
+
+    pk = PrivateKey(private_key, raw=True)
+    signature = pk.ecdsa_recoverable_serialize(
+        pk.ecdsa_sign_recoverable(rawhash, raw=True)
+    )
+    signature = signature[0] + bytearray_to_bytestr([signature[1] + 27])
+
+    return data_encoder(signature)
+
+def personal_ecrecover(msg, signature, address=None):
+    return ecrecover("\x19Ethereum Signed Message:\n{}{}".format(len(msg), msg),
+                     signature, address)
 
 def checksum_encode_address(addr):
     if isinstance(addr, str):
