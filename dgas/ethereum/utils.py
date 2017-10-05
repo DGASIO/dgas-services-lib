@@ -137,6 +137,7 @@ def personal_ecrecover(msg, signature, address=None):
                      signature, address)
 
 def checksum_encode_address(addr):
+    """https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md"""
     if isinstance(addr, str):
         addr = data_decoder(addr)
 
