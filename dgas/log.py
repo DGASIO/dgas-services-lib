@@ -104,3 +104,22 @@ def log_headers_on_error(func=None):
         return wrap(func)
     else:
         return wrap
+
+def log_unhandled_exceptions(func=None, logger=log, message="Unhandled exception"):
+    def wrap(fn):
+        async def wrapper(self, *args, **kwargs):
+            try:
+                f = fn(self, *args, **kwargs)
+                if asyncio.iscoroutine(f):
+                    f = await f
+                return f
+            except:
+                logger.exception(message)
+                raise
+
+        return wrapper
+
+    if func is not None:
+        return wrap(func)
+    else:
+        return wrap
