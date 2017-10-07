@@ -55,13 +55,15 @@ def requires_redis(func=None, pass_redis=None):
                     connection_class=redis.connection.UnixDomainSocketConnection,
                     decode_responses=True,
                     password=config['password'] if 'password' in config else None,
-                    path=config['unix_socket_path'])
+                    path=config['unix_socket_path'],
+                    db=config['db'])
             else:
                 self._app.redis_connection_pool = redis.ConnectionPool(
                     decode_responses=True,
                     password=config['password'] if 'password' in config else None,
                     host=config['host'],
-                    port=config['port'])
+                    port=config['port'],
+                    db=config['db'])
 
             # if the app has a `task_listener`, adjust it's config for the test
             if hasattr(self._app, 'task_listener'):
