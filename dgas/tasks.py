@@ -8,7 +8,7 @@ import uuid
 import traceback
 import logging
 from functools import partial
-from tornado.platform.asyncio import to_tornado_future, to_asyncio_future
+from tornado.platform.asyncio import to_asyncio_future
 
 TASK_QUEUE_CHANNEL_NAME = 'task-queue'
 
@@ -79,19 +79,21 @@ class TaskHandler:
             r = func(*args)
             if asyncio.iscoroutine(r):
                 r = await to_asyncio_future(r)
-            # only send results back if the listener is still running
-            if not self.listener.aio_redis_connection_pool.closed:
-                while True:
-                    try:
-                        with (await self.listener.get_redis_connection()) as con:
-                            await con.publish(self.listener.queue_name,
-                                              msgpack.packb([self.task_id, 'result', r], use_bin_type=True, encoding="utf-8"))
-                    except asyncio.CancelledError:
-                        # can happen when the redis server disconnects in between the connect and the publish
-                        continue
-                    return
-            else:
-                log.warning("'{}' result done after connection pool closed".format(fnname))
+            while True:
+                try:
+                    await self.listener.aio_redis_connection_pool.publish(
+                        self.listener.queue_name,
+                        msgpack.packb([self.task_id, 'result', r], use_bin_type=True, encoding="utf-8"))
+                    break
+                except aioredis.errors.PoolClosedError:
+                    # only send results back if the listener is still running
+                    log.warning("'{}' result done after connection pool closed".format(fnname))
+                    break
+                except asyncio.CancelledError:
+                    continue
+                except:
+                    log.exception("Error when sending task result")
+                    await asyncio.sleep(0.1)
         except:
             if not self.listener.aio_redis_connection_pool.closed:
                 log.exception("call to '{}' threw exception".format(fnname))
@@ -99,14 +101,9 @@ class TaskHandler:
                 exc_type = "{}".format(info[0].__name__)
                 msg = "{}".format(info[1])
                 trace = "".join(traceback.format_exception(*info))
-                while True:
-                    try:
-                        with (await self.listener.get_redis_connection()) as con:
-                            await con.publish(self.listener.queue_name,
-                                              msgpack.packb([self.task_id, 'exception', exc_type, msg, trace], use_bin_type=True, encoding="utf-8"))
-                    except asyncio.CancelledError:
-                        continue
-                    return
+                await self.listener.aio_redis_connection_pool.publish(
+                    self.listener.queue_name,
+                    msgpack.packb([self.task_id, 'exception', exc_type, msg, trace], use_bin_type=True, encoding="utf-8"))
             else:
                 log.exception("'{}' threw exception after connection pool closed".format(fnname))
 
@@ -192,63 +189,57 @@ class TaskListener:
             'password': password.encode('utf-8') if password else None
         }
 
-    async def get_redis_connection(self):
-        #return (await self.aio_redis_connection_pool)
-        while True:
+    async def _task_dispatch_loop(self):
+
+        while not self._shutdown_task_dispatch:
             try:
-                con = await self.aio_redis_connection_pool
-                return con
-            except (FileNotFoundError, ConnectionRefusedError, asyncio.CancelledError):
-                await asyncio.sleep(0.1)
-            except aioredis.errors.PoolClosedError:
-                await asyncio.sleep(0.1)
-            except Exception:
-                log.exception("Unhandled exception creating redis connection")
+                await self._task_dispatch_loop_main()
+            except:
+                log.exception("Unhandled Error in task dispatch loop")
                 await asyncio.sleep(0.1)
 
-    async def _task_dispatch_loop(self):
+    async def _task_dispatch_loop_main(self):
 
         if hasattr(self, '_sub_con') and self._sub_con is not None:
             log.warning("Attempted to start 2nd task dispatch loop")
             return
 
-        while not self._shutdown_task_dispatch:
-            with (await self.get_redis_connection()) as sub_con:
-                self._sub_con = sub_con
-                res = await self._sub_con.subscribe(self.queue_name)
-                ch = res[0]
-                while (await ch.wait_message()):
-                    message = await ch.get()
-                    try:
-                        task_id, action, *args = msgpack.unpackb(message, encoding='utf-8')
-                    except (TypeError, ValueError):
-                        log.exception("Invalid message: {}".format(message))
-                        continue
-                    if action == 'call':
-                        fnname, *args = args
-                        if fnname in self._task_handlers:
-                            for handler_class, optionals in self._task_handlers[fnname]:
-                                try:
-                                    handler = handler_class(self, task_id, **optionals)
-                                    runner = asyncio.ensure_future(handler._call_handler(fnname, args))
-                                    self._running_tasks[task_id] = runner
-                                    runner.add_done_callback(partial(self._runner_done, task_id))
-                                except:
-                                    log.exception("error calling function: {}".format(fnname))
-                    elif action == 'result':
-                        if task_id in self._tasks:
-                            f = self._tasks.pop(task_id)
-                            f.set_result(args[0] if args else None)
-                    elif action == 'exception':
-                        if task_id in self._tasks:
-                            error = TaskError(*args)
-                            f = self._tasks.pop(task_id)
-                            f.set_exception(error)
-                    else:
-                        log.exception("Unknown message: {}".format(message))
-                        continue
+        with await self.aio_redis_connection_pool as sub_con:
+            self._sub_con = sub_con
+            res = await self._sub_con.subscribe(self.queue_name)
+            ch = res[0]
+            while (await ch.wait_message()):
+                message = await ch.get()
+                try:
+                    task_id, action, *args = msgpack.unpackb(message, encoding='utf-8')
+                except (TypeError, ValueError):
+                    log.exception("Invalid message: {}".format(message))
+                    continue
+                if action == 'call':
+                    fnname, *args = args
+                    if fnname in self._task_handlers:
+                        for handler_class, optionals in self._task_handlers[fnname]:
+                            try:
+                                handler = handler_class(self, task_id, **optionals)
+                                runner = asyncio.ensure_future(handler._call_handler(fnname, args))
+                                self._running_tasks[task_id] = runner
+                                runner.add_done_callback(partial(self._runner_done, task_id))
+                            except:
+                                log.exception("error calling function: {}".format(fnname))
+                elif action == 'result':
+                    if task_id in self._tasks:
+                        f = self._tasks.pop(task_id)
+                        f.set_result(args[0] if args else None)
+                elif action == 'exception':
+                    if task_id in self._tasks:
+                        error = TaskError(*args)
+                        f = self._tasks.pop(task_id)
+                        f.set_exception(error)
+                else:
+                    log.error("Unknown message: {}".format(message))
+                    continue
 
-                self._sub_con = None
+            self._sub_con = None
 
     def _runner_done(self, task_id, runner):
         self._running_tasks.pop(task_id)
@@ -262,8 +253,8 @@ class TaskListener:
     async def _start(self):
         self._shutdown_task_dispatch = False
         try:
-            if not hasattr(self, 'aio_redis_connection_pool') or self.aio_redis_connection_pool.closed():
-                self.aio_redis_connection_pool = await aioredis.create_pool(**self._get_redis_config())
+            if not hasattr(self, 'aio_redis_connection_pool') or self.aio_redis_connection_pool.closed:
+                self.aio_redis_connection_pool = await aioredis.create_redis_pool(**self._get_redis_config())
             if not hasattr(self, '_disp_task') or self._disp_task.done():
                 self._disp_task = asyncio.ensure_future(self._task_dispatch_loop())
         except:
@@ -290,9 +281,13 @@ class TaskListener:
 
     async def _publish_task(self, task):
         """publishes the task to the redis channel"""
-        with (await self.get_redis_connection()) as con:
-            await con.publish(self.queue_name,
-                              task.pack())
+        try:
+            await self.aio_redis_connection_pool.publish(
+                self.queue_name,
+                task.pack())
+        except aioredis.errors.PoolClosedError:
+            # ignoring pool closed errors
+            pass
 
     def _call_task(self, task):
         """used to prevent the creation of a coroutine before the task actually gets called"""

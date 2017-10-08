@@ -28,6 +28,6 @@ setup(
         'mixpanel==4.3.2',
         'redis',
         'msgpack-python',
-        'aioredis==0.3.2'
+        'aioredis==1.0.0'
     ]
 )
