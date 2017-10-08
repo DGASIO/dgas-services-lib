@@ -13,7 +13,7 @@ setup(
     install_requires=[
         'regex',
         'tornado==4.5.1',
-        'ethereum==2.0.4',
+        'ethereum==2.3.0',
         'secp256k1'
     ],
     dependency_links=[

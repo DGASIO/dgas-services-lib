@@ -1,6 +1,5 @@
 import asyncio
 import binascii
-import bitcoin
 import os
 import functools
 import tornado.httpclient
@@ -8,6 +7,9 @@ import tornado.escape
 import subprocess
 import socket
 import re
+
+from py_ecc.secp256k1 import privtopub
+from ethereum.utils import encode_int32
 
 from tornado.websocket import websocket_connect
 
@@ -905,7 +907,9 @@ class GethServer(Database):
         if self.settings['ws'] is not None:
             self.settings['wsport'] = get_unused_port()
 
-        self.public_key = "{:0>128}".format(binascii.b2a_hex(bitcoin.privtopub(binascii.a2b_hex(self.settings['node_key']))[1:]).decode('ascii'))
+        pub_x, pub_y = privtopub(binascii.a2b_hex(self.settings['node_key']))
+        pub = encode_int32(pub_x) + encode_int32(pub_y)
+        self.public_key = "{:0>128}".format(binascii.b2a_hex(pub).decode('ascii'))
 
         # write chain file
         write_chain_file(self.version, self.chainfile, self.author, self.difficulty)

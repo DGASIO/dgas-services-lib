@@ -1,12 +1,14 @@
 import asyncio
 import binascii
-import bitcoin
 import os
 import tornado.httpclient
 import tornado.escape
 import signal
 import subprocess
 import re
+
+from py_ecc.secp256k1 import privtopub
+from ethereum.utils import encode_int32
 
 from testing.common.database import (
     Database, DatabaseFactory, get_path_of, get_unused_port
@@ -147,7 +149,9 @@ class ParityServer(Database):
         if self.settings['node_key'] is None:
             self.settings['node_key'] = "{:0>64}".format(binascii.b2a_hex(os.urandom(32)).decode('ascii'))
 
-        self.public_key = "{:0>128}".format(binascii.b2a_hex(bitcoin.privtopub(binascii.a2b_hex(self.settings['node_key']))[1:]).decode('ascii'))
+        pub_x, pub_y = privtopub(binascii.a2b_hex(self.settings['node_key']))
+        pub = encode_int32(pub_x) + encode_int32(pub_y)
+        self.public_key = "{:0>128}".format(binascii.b2a_hex(pub).decode('ascii'))
 
         # write chain file
         write_chain_file(self.version, self.chainfile, self.faucet, self.difficulty)
