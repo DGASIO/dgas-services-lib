@@ -87,7 +87,8 @@ class TaskHandler:
                     break
                 except aioredis.errors.PoolClosedError:
                     # only send results back if the listener is still running
-                    log.warning("'{}' result done after connection pool closed".format(fnname))
+                    if not self.listener._shutdown_task_dispatch:
+                        log.warning("'{}' result done after connection pool closed".format(fnname))
                     break
                 except asyncio.CancelledError:
                     continue
@@ -95,7 +96,9 @@ class TaskHandler:
                     log.exception("Error when sending task result")
                     await asyncio.sleep(0.1)
         except:
-            if not self.listener.aio_redis_connection_pool.closed:
+            if self.listener._shutdown_task_dispatch:
+                pass
+            elif not self.listener.aio_redis_connection_pool.closed:
                 log.exception("call to '{}' threw exception".format(fnname))
                 info = sys.exc_info()
                 exc_type = "{}".format(info[0].__name__)
