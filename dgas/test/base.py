@@ -46,16 +46,19 @@ class DgasWebSocketJsonRPCClient:
         # find out if there's a path prefix added by get_url
         path = "/{}".format(self.url.split('/', 3)[-1])
 
-        address = private_key_to_address(self.signing_key)
-        timestamp = int(time.time())
-        signature = sign_request(self.signing_key, "GET", path, timestamp, None)
+        headers = {'User-Agent': 'Dgas-Test-Websocket-Client'}
+        if self.signing_key:
+            address = private_key_to_address(self.signing_key)
+            timestamp = int(time.time())
+            signature = sign_request(self.signing_key, "GET", path, timestamp, None)
 
-        request = tornado.httpclient.HTTPRequest(self.url, headers={
-            'User-Agent': 'Dgas-Test-Websocket-Client',
-            TOSHI_ID_ADDRESS_HEADER: address,
-            TOSHI_SIGNATURE_HEADER: signature,
-            TOSHI_TIMESTAMP_HEADER: str(timestamp)
-        })
+            headers.update({
+                TOSHI_ID_ADDRESS_HEADER: address,
+                TOSHI_SIGNATURE_HEADER: signature,
+                TOSHI_TIMESTAMP_HEADER: str(timestamp)
+            })
+
+        request = tornado.httpclient.HTTPRequest(self.url, headers=headers)
 
         self.con = await tornado.websocket.websocket_connect(request)
         return self.con
