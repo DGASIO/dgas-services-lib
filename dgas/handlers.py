@@ -6,12 +6,12 @@ import time
 import tornado.escape
 import tornado.web
 import traceback
+import email.utils
 
 from .utils import validate_signature, validate_address, parse_int
 from .request import generate_request_signature_data_string
 from .ethereum.utils import data_decoder, ecrecover
 from .errors import JSONHTTPError
-from .analytics import encode_id
 from .log import log
 from json import JSONDecodeError
 
@@ -226,8 +226,8 @@ class SimpleFileHandler(BaseHandler):
         self.set_header("Content-length", len(data))
         self.set_header("Cache-Control",
                         "max-age={}, no-transform".format(CACHE_MAX_AGE_SECONDS))
-        self.set_header("Expires", datetime.datetime.utcnow()
-                        + datetime.timedelta(seconds=CACHE_MAX_AGE_SECONDS))
+        self.set_header("Expires", datetime.datetime.utcnow() +
+                        datetime.timedelta(seconds=CACHE_MAX_AGE_SECONDS))
 
         if self.request.headers.get("If-None-Match"):
             # check etag
