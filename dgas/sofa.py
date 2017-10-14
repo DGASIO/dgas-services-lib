@@ -7,10 +7,10 @@ QOFP_REGEX = regex.compile("^QOFP::(?P<type>[A-Za-z]+):(?P<json>.+)$")
 
 class QofpBase:
 
-    def __init__(self, type):
+    def __init__(self, type, **kwargs):
 
         self._type = type
-        self._data = {}
+        self._data = kwargs
 
     def __setitem__(self, key, value):
         self._data[key] = value
@@ -28,9 +28,9 @@ class QofpBase:
 
 class QofpPayment(QofpBase):
 
-    def __init__(self, status=None, txHash=None, value=None, currency=None, fromAddress=None, toAddress=None, networkId=None):
+    def __init__(self, status=None, txHash=None, value=None, currency=None, fromAddress=None, toAddress=None, networkId=None, **kwargs):
 
-        super().__init__("Payment")
+        super().__init__("Payment", **kwargs)
 
         self['status'] = status
         self['txHash'] = txHash
