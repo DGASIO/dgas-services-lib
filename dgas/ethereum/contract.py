@@ -58,6 +58,14 @@ class ContractMethod:
     async def __call__(self, *args, startgas=None, gasprice=20000000000, value=0, wait_for_confirmation=True):
 
         # TODO: figure out if we can validate args
+        validated_args = []
+        for (type, name), arg in zip(self.contract.translator.function_data[self.name]['signature'], args):
+            if type == 'address' and isinstance(arg, str):
+                validated_args.append(data_decoder(arg))
+            elif (type.startswith("uint") or type.startswith("int")) and isinstance(arg, str):
+                validated_args.append(int(arg, 16))
+            else:
+                validated_args.append(arg)
 
         ethurl = os.environ.get('ETHEREUM_NODE_URL')
         if not ethurl:
@@ -65,7 +73,7 @@ class ContractMethod:
 
         ethclient = JsonRPCClient(ethurl)
 
-        data = self.contract.translator.encode_function_call(self.name, args)
+        data = self.contract.translator.encode_function_call(self.name, validated_args)
 
         # TODO: figure out if there's a better way to tell if the function needs to be called via sendTransaction
         if self.is_constant:

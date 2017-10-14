@@ -243,9 +243,17 @@ class JsonRPCClient:
         if address:
             kwargs['address'] = validate_hex(address)
         if topics:
+            # validate topics
             if not isinstance(topics, list):
                 raise TypeError("topics must be an array of DATA")
-            kwargs['topics'] = [None if i is None else validate_hex(i, 32) for i in topics]
+            for topic in topics:
+                if isinstance(topic, list):
+                    if not all(validate_hex(t, 32) for t in topic):
+                        raise TypeError("topics must be an array of DATA")
+                else:
+                    if not validate_hex(topic):
+                        raise TypeError("topics must be an array of DATA")
+            kwargs['topics'] = topics
 
         result = await self._fetch("eth_getLogs", [kwargs])
 
