@@ -33,7 +33,7 @@ class ContractTranslator(ethereum.abi.ContractTranslator):
 
 class ContractMethod:
 
-    def __init__(self, name, contract, *, from_key=None, constant=None):
+    def __init__(self, name, contract, *, from_key=None, constant=None, return_raw_tx=False):
         self.name = name
         self.contract = contract
         # TODO: forcing const seems to do nothing, since eth_call
@@ -50,10 +50,16 @@ class ContractMethod:
                 self.from_key = from_key
             self.from_address = private_key_to_address(from_key)
         else:
+            self.from_key = None
             self.from_address = None
+        self.return_raw_tx = return_raw_tx
 
     def set_sender(self, key):
-        return self.__class__(self.name, self.contract, from_key=key, constant=self.is_constant)
+        return self.__class__(self.name, self.contract, from_key=key, constant=self.is_constant, return_raw_tx=self.return_raw_tx)
+
+    @property
+    def get_raw_tx(self):
+        return self.__class__(self.name, self.contract, from_key=self.from_key, constant=self.is_constant, return_raw_tx=True)
 
     async def __call__(self, *args, startgas=None, gasprice=20000000000, value=0, wait_for_confirmation=True):
 
@@ -110,6 +116,10 @@ class ContractMethod:
             tx.sign(self.from_key)
 
             tx_encoded = data_encoder(rlp.encode(tx, Transaction))
+
+            if self.return_raw_tx:
+                return tx_encoded
+
             try:
                 tx_hash = await ethclient.eth_sendRawTransaction(tx_encoded)
             except:
