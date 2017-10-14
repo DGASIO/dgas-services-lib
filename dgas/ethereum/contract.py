@@ -97,11 +97,10 @@ class ContractMethod:
             nonce = await ethclient.eth_getTransactionCount(self.from_address)
             balance = await ethclient.eth_getBalance(self.from_address)
 
-            _startgas = await ethclient.eth_estimateGas(self.from_address, self.contract.address, data=data, nonce=nonce, value=value, gasprice=gasprice)
             if startgas is None:
-                startgas = _startgas
-            if startgas == 50000000:
-                # TODO: this is not going to always be the case!
+                startgas = await ethclient.eth_estimateGas(self.from_address, self.contract.address, data=data,
+                                                           nonce=nonce, value=value, gasprice=gasprice)
+            if startgas == 50000000 or startgas is None:
                 raise Exception("Unable to estimate gas cost, possibly something wrong with the transaction arguments")
 
             if balance < (startgas * gasprice):
