@@ -3,7 +3,7 @@ import regex
 from ..jsonrpc.client import JsonRPCClient
 from secp256k1 import PrivateKey, PublicKey, ALL_FLAGS
 from ethereum.utils import bytearray_to_bytestr, sha3, safe_ord, big_endian_to_int, int_to_32bytearray, zpad
-from ethereum.abi import event_id, process_type, _canonical_type, decode_abi
+from ethereum.abi import event_id, process_type, _canonical_type, decode_abi, decode_single
 from ..utils import validate_hex_string
 
 def data_decoder(data):
@@ -210,3 +210,7 @@ def decode_event_data(topic, data):
         else:
             arguments.append(_convert_array(atyp, arr[1:-1].split(']['), val))
     return arguments
+
+def decode_single_address(address):
+    """decodes address data from 32 byte logs"""
+    return decode_single(('address', '', []), data_decoder(address))
