@@ -200,7 +200,12 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
         if 'raise_error' not in kwargs:
             kwargs['raise_error'] = False
 
-        return self.http_client.fetch(self.get_url(req), self.stop, **kwargs)
+        if req.startswith('http://') or req.startswith('https://'):
+            url = req
+        else:
+            url = self.get_url(req)
+
+        return self.http_client.fetch(url, self.stop, **kwargs)
 
     def assertResponseCodeEqual(self, response, expected_code, message=None):
         """Asserts that the response code was what was expected, with the addition

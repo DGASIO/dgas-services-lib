@@ -26,6 +26,10 @@ tornado.platform.asyncio.AsyncIOMainLoop().install()
 tornado.options.define("config", default="config-localhost.ini", help="configuration file")
 tornado.options.define("port", default=8888, help="port to listen on")
 
+def set_config_from_environ(config, section, key, env):
+    if env in os.environ:
+        config.setdefault(section, SectionProxy(config, section))[key] = os.environ[env]
+
 class ConfigurationManager:
 
     def process_config(self):
@@ -65,6 +69,11 @@ class ConfigurationManager:
 
         if 'REDIS_URL' in os.environ:
             config['redis'] = {'url': os.environ['REDIS_URL']}
+
+        set_config_from_environ(config, 's3', 'aws_access_key_id', 'AWS_ACCESS_KEY_ID')
+        set_config_from_environ(config, 's3', 'aws_secret_access_key', 'AWS_SECRET_ACCESS_KEY')
+        set_config_from_environ(config, 's3', 'bucket_name', 'AWS_BUCKET_NAME')
+        set_config_from_environ(config, 's3', 'region_name', 'AWS_REGION')
 
         if 'EXECUTOR_MAX_WORKERS' in os.environ:
             config['executor'] = {'max_workers': os.environ['EXECUTOR_MAX_WORKERS']}

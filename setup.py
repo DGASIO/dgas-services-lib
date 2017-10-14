@@ -28,6 +28,8 @@ setup(
         'mixpanel==4.3.2',
         'redis',
         'msgpack-python',
-        'aioredis==1.0.0'
+        'aioredis==1.0.0',
+        'moto[server]',
+        'aiobotocore'
     ]
 )
