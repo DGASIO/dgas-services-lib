@@ -1,10 +1,10 @@
 import asyncio
 import binascii
 import os
-import tornado.httpclient
-import tornado.escape
 import signal
 import subprocess
+import urllib.request
+import tornado.escape
 import re
 
 from py_ecc.secp256k1 import privtopub
@@ -195,19 +195,21 @@ class ParityServer(Database):
 
     def is_server_available(self):
         try:
-            tornado.httpclient.HTTPClient().fetch(
-                self.dsn()['url'],
-                method="POST",
-                headers={'Content-Type': "application/json"},
-                body=tornado.escape.json_encode({
-                    "jsonrpc": "2.0",
-                    "id": "1234",
-                    "method": "eth_getBalance",
-                    "params": ["0x{}".format(self.author), "latest"]
-                })
-            )
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    self.dsn()['url'],
+                    headers={'Content-Type': "application/json"},
+                    data=tornado.escape.json_encode({
+                        "jsonrpc": "2.0",
+                        "id": "1234",
+                        "method": "eth_getBalance",
+                        "params": ["0x{}".format(self.author), "latest"]
+                    }).encode('utf-8')
+                ))
             return True
-        except:
+        except Exception as e:
+            if not hasattr(e, 'reason') or not isinstance(e.reason, ConnectionRefusedError):
+                print(e)
             return False
 
     def pause(self):

@@ -12,7 +12,7 @@ setup(
     setup_requires=['pytest-runner'],
     install_requires=[
         'regex',
-        'tornado==4.5.1',
+        'tornado==5.0.0'
     ],
     dependency_links=[
     ],

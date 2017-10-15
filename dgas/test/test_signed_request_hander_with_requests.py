@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 import requests
 import time
@@ -49,13 +50,15 @@ class TornadoServer(threading.Thread):
 
         self.port = port
 
-        self.ioloop = tornado.ioloop.IOLoop().instance()
+        self.aioloop = asyncio.new_event_loop()
         self.application = dgas.web.Application([
             ("^/?$", SimpleHandler)
         ])
         self._server = tornado.httpserver.HTTPServer(self.application)
 
     def run(self):
+        asyncio.set_event_loop(self.aioloop)
+        self.ioloop = tornado.ioloop.IOLoop.current()
         self._server.listen(self.port, '127.0.0.1')
         self.ioloop.start()
 

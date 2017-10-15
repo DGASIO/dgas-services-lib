@@ -1,9 +1,9 @@
 import asyncio
 import binascii
 import os
-import functools
 import tornado.httpclient
 import tornado.escape
+import urllib.request
 import subprocess
 import socket
 import re
@@ -953,25 +953,24 @@ class GethServer(Database):
     def is_server_available(self):
         try:
             if self.settings['ws'] is not None:
-                ioloop = tornado.ioloop.IOLoop(make_current=False)
-                ioloop.run_sync(functools.partial(
-                    geth_websocket_connect, self.dsn()['ws']))
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect(('localhost', self.settings['wsport']))
             else:
-                tornado.httpclient.HTTPClient().fetch(
-                    self.dsn()['url'],
-                    method="POST",
-                    headers={'Content-Type': "application/json"},
-                    body=tornado.escape.json_encode({
-                        "jsonrpc": "2.0",
-                        "id": "1234",
-                        "method": "POST",
-                        "params": ["0x{}".format(self.author), "latest"]
-                    })
-                )
+                urllib.request.urlopen(
+                    urllib.request.Request(
+                        self.dsn()['url'],
+                        headers={'Content-Type': "application/json"},
+                        data=tornado.escape.json_encode({
+                            "jsonrpc": "2.0",
+                            "id": "1234",
+                            "method": "eth_getBalance",
+                            "params": ["0x{}".format(self.author), "latest"]
+                        }).encode('utf-8')
+                    ))
             return True
-        except (tornado.httpclient.HTTPError,) as e:
-            return False
-        except (ConnectionRefusedError,) as e:
+        except Exception as e:
+            if not hasattr(e, 'reason') or not isinstance(e.reason, ConnectionRefusedError):
+                print(e)
             return False
 
 class GethServerFactory(DatabaseFactory):
@@ -1025,7 +1024,7 @@ def requires_geth(func=None, pass_server=False, pass_ethminer=False, use_ethmine
     else:
         return wrap
 
-def geth_websocket_connect(url, io_loop=None, callback=None, connect_timeout=None,
+def geth_websocket_connect(url, callback=None, connect_timeout=None,
                            on_message_callback=None, compression_options=None):
     """Helper function for connecting to geth via websockets, which may need the
     origin set should there be no --wsorigin * option set in geth's config"""
@@ -1036,5 +1035,5 @@ def geth_websocket_connect(url, io_loop=None, callback=None, connect_timeout=Non
         else:
             origin = 'http://{}'.format(socket.gethostname())
         url = tornado.httpclient.HTTPRequest(url, headers={'Origin': origin})
-    return websocket_connect(url, io_loop=io_loop, callback=callback, connect_timeout=connect_timeout,
+    return websocket_connect(url, callback=callback, connect_timeout=connect_timeout,
                              on_message_callback=on_message_callback, compression_options=compression_options)

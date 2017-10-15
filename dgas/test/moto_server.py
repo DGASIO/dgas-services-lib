@@ -1,7 +1,7 @@
 import asyncio
 import os
-import tornado.httpclient
-import tornado.escape
+import urllib.request
+import urllib.error
 import aiobotocore
 from dgas.boto import BotoContext
 
@@ -39,14 +39,11 @@ class MotoServer(Database):
 
     def is_server_available(self):
         try:
-            resp = tornado.httpclient.HTTPClient().fetch(
-                self.dsn()['endpoint_url'],
-                method="GET",
-                raise_error=False
-            )
+            resp = urllib.request.urlopen(self.dsn()['endpoint_url'], timeout=1)
             return resp.code == 200
         except Exception as e:
-            print(e)
+            if not isinstance(e.reason, ConnectionRefusedError):
+                print(e)
             return False
 
 
