@@ -9,8 +9,16 @@ import traceback
 import email.utils
 
 from .utils import validate_signature, validate_address, parse_int
-from .request import generate_request_signature_data_string
-from .ethereum.utils import data_decoder, ecrecover
+try:
+    from .request import generate_request_signature_data_string
+    from .ethereum.utils import data_decoder, ecrecover
+    ETHEREUM_SUPPORTED = True
+except ModuleNotFoundError as ex:
+    if ex.name == 'ethereum':
+        ETHEREUM_SUPPORTED = False
+    else:
+        raise
+
 from .errors import JSONHTTPError
 from .log import log
 from json import JSONDecodeError
@@ -44,95 +52,102 @@ CACHE_MAX_AGE_SECONDS = 1209600
 
 class RequestVerificationMixin:
 
-    def verify_request(self):
-        """Verifies that the signature and the payload match the expected address
-        raising a JSONHTTPError (400) if something is wrong with the request"""
+    if ETHEREUM_SUPPORTED:
+        def verify_request(self):
+            """Verifies that the signature and the payload match the expected address
+            raising a JSONHTTPError (400) if something is wrong with the request"""
 
-        if TOSHI_ID_ADDRESS_HEADER in self.request.headers:
-            expected_address = self.request.headers[TOSHI_ID_ADDRESS_HEADER]
-        elif self.get_argument(TOSHI_ID_ADDRESS_QUERY_ARG, None):
-            expected_address = self.get_argument(TOSHI_ID_ADDRESS_QUERY_ARG)
-        elif TOKEN_ID_ADDRESS_HEADER in self.request.headers:
-            expected_address = self.request.headers[TOKEN_ID_ADDRESS_HEADER]
-        elif self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG, None):
-            expected_address = self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG)
-        else:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-ID-Address'}]})
+            if TOSHI_ID_ADDRESS_HEADER in self.request.headers:
+                expected_address = self.request.headers[TOSHI_ID_ADDRESS_HEADER]
+            elif self.get_argument(TOSHI_ID_ADDRESS_QUERY_ARG, None):
+                expected_address = self.get_argument(TOSHI_ID_ADDRESS_QUERY_ARG)
+            elif TOKEN_ID_ADDRESS_HEADER in self.request.headers:
+                expected_address = self.request.headers[TOKEN_ID_ADDRESS_HEADER]
+            elif self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG, None):
+                expected_address = self.get_argument(TOKEN_ID_ADDRESS_QUERY_ARG)
+            else:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-ID-Address'}]})
 
-        if TOSHI_SIGNATURE_HEADER in self.request.headers:
-            signature = self.request.headers[TOSHI_SIGNATURE_HEADER]
-        elif self.get_argument(TOSHI_SIGNATURE_QUERY_ARG, None):
-            signature = self.get_argument(TOSHI_SIGNATURE_QUERY_ARG)
-        elif TOKEN_SIGNATURE_HEADER in self.request.headers:
-            signature = self.request.headers[TOKEN_SIGNATURE_HEADER]
-        elif self.get_argument(TOKEN_SIGNATURE_QUERY_ARG, None):
-            signature = self.get_argument(TOKEN_SIGNATURE_QUERY_ARG)
-        else:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-Signature'}]})
+            if TOSHI_SIGNATURE_HEADER in self.request.headers:
+                signature = self.request.headers[TOSHI_SIGNATURE_HEADER]
+            elif self.get_argument(TOSHI_SIGNATURE_QUERY_ARG, None):
+                signature = self.get_argument(TOSHI_SIGNATURE_QUERY_ARG)
+            elif TOKEN_SIGNATURE_HEADER in self.request.headers:
+                signature = self.request.headers[TOKEN_SIGNATURE_HEADER]
+            elif self.get_argument(TOKEN_SIGNATURE_QUERY_ARG, None):
+                signature = self.get_argument(TOKEN_SIGNATURE_QUERY_ARG)
+            else:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-Signature'}]})
 
-        if TOSHI_TIMESTAMP_HEADER in self.request.headers:
-            timestamp = self.request.headers[TOSHI_TIMESTAMP_HEADER]
-        elif self.get_argument(TOSHI_TIMESTAMP_QUERY_ARG, None):
-            timestamp = self.get_argument(TOSHI_TIMESTAMP_QUERY_ARG)
-        elif TOKEN_TIMESTAMP_HEADER in self.request.headers:
-            timestamp = self.request.headers[TOKEN_TIMESTAMP_HEADER]
-        elif self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG, None):
-            timestamp = self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG)
-        else:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-Timestamp'}]})
+            if TOSHI_TIMESTAMP_HEADER in self.request.headers:
+                timestamp = self.request.headers[TOSHI_TIMESTAMP_HEADER]
+            elif self.get_argument(TOSHI_TIMESTAMP_QUERY_ARG, None):
+                timestamp = self.get_argument(TOSHI_TIMESTAMP_QUERY_ARG)
+            elif TOKEN_TIMESTAMP_HEADER in self.request.headers:
+                timestamp = self.request.headers[TOKEN_TIMESTAMP_HEADER]
+            elif self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG, None):
+                timestamp = self.get_argument(TOKEN_TIMESTAMP_QUERY_ARG)
+            else:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing Dgas-Timestamp'}]})
 
-        timestamp = parse_int(timestamp)
-        if timestamp is None:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
-                                                       'message': 'Given Dgas-Timestamp is invalid'}]})
+            timestamp = parse_int(timestamp)
+            if timestamp is None:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                           'message': 'Given Dgas-Timestamp is invalid'}]})
 
-        if not validate_address(expected_address):
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_id_address', 'message': 'Invalid Dgas-ID-Address'}]})
+            if not validate_address(expected_address):
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_id_address', 'message': 'Invalid Dgas-ID-Address'}]})
 
-        if not validate_signature(signature):
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
+            if not validate_signature(signature):
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
 
-        try:
-            signature = data_decoder(signature)
-        except Exception:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
+            try:
+                signature = data_decoder(signature)
+            except Exception:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
 
-        verb = self.request.method
-        uri = self.request.path
+            verb = self.request.method
+            uri = self.request.path
 
-        if self.request.body:
-            datahash = self.request.body
-        else:
-            datahash = ""
+            if self.request.body:
+                datahash = self.request.body
+            else:
+                datahash = ""
 
-        data_string = generate_request_signature_data_string(verb, uri, timestamp, datahash)
+            data_string = generate_request_signature_data_string(verb, uri, timestamp, datahash)
 
-        if not ecrecover(data_string, signature, expected_address):
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
+            if not ecrecover(data_string, signature, expected_address):
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_signature', 'message': 'Invalid Dgas-Signature'}]})
 
-        if abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
-                                                       'message': 'The difference between the timestamp and the current time is too large'}]})
+            if abs(int(time.time()) - timestamp) > TIMESTAMP_EXPIRY:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'invalid_timestamp',
+                                                           'message': 'The difference between the timestamp and the current time is too large'}]})
 
-        return expected_address
+            return expected_address
 
-    def is_request_signed(self, raise_if_partial=True):
-        """Returns true if the request contains the headers needed to be considered signed.
-        Designed for use in situations where a signature may be optional.
+        def is_request_signed(self, raise_if_partial=True):
+            """Returns true if the request contains the headers needed to be considered signed.
+            Designed for use in situations where a signature may be optional.
 
-        if `raise_if_partial` is true (default) this will raise a HTTPError if the
-        request contains only some of the headers needed for the signature
-        verification, otherwise False will be returned"""
+            if `raise_if_partial` is true (default) this will raise a HTTPError if the
+            request contains only some of the headers needed for the signature
+            verification, otherwise False will be returned"""
 
-        count_token_headers = sum(1 if x in self.request.headers else 0 for x in [TOKEN_ID_ADDRESS_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_TIMESTAMP_HEADER])
-        count_dgas_headers = sum(1 if x in self.request.headers else 0 for x in [TOSHI_ID_ADDRESS_HEADER, TOSHI_SIGNATURE_HEADER, TOSHI_TIMESTAMP_HEADER])
+            count_token_headers = sum(1 if x in self.request.headers else 0 for x in [TOKEN_ID_ADDRESS_HEADER, TOKEN_SIGNATURE_HEADER, TOKEN_TIMESTAMP_HEADER])
+            count_dgas_headers = sum(1 if x in self.request.headers else 0 for x in [TOSHI_ID_ADDRESS_HEADER, TOSHI_SIGNATURE_HEADER, TOSHI_TIMESTAMP_HEADER])
 
-        if count_token_headers == 3 or count_dgas_headers == 3:
-            return True
-        if count_token_headers == 0 or count_dgas_headers == 0:
-            return False
-        if raise_if_partial:
-            raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing headers required for authentication'}]})
+            if count_token_headers == 3 or count_dgas_headers == 3:
+                return True
+            if count_token_headers == 0 or count_dgas_headers == 0:
+                return False
+            if raise_if_partial:
+                raise JSONHTTPError(400, body={'errors': [{'id': 'bad_arguments', 'message': 'Missing headers required for authentication'}]})
+    else:
+        def verify_request(self):
+            raise Exception("Missing optional ethereum module, install with pip install dgas-services[ethereum]")
+
+        def is_request_signed(self, raise_if_partial=True):
+            raise Exception("Missing optional ethereum module, install with pip install dgas-services[ethereum]")
 
 class JsonBodyMixin:
 

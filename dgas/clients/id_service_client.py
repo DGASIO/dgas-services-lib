@@ -10,13 +10,13 @@ except:
 
 class IdServiceClient:
 
-    def __init__(self, base_url=None, use_tornado=False):
+    def __init__(self, base_url=None, use_tornado=TORNADO_SUPPORT):
 
         if base_url is None:
             if 'ID_SERVICE_URL' in os.environ:
                 base_url = os.environ['ID_SERVICE_URL'].strip()
             else:
-                base_url = "https://token-id-service.herokuapp.com"
+                base_url = "https://identity.service.dgas.org"
 
         if base_url.endswith('/'):
             base_url = base_url[:-1]
@@ -27,7 +27,6 @@ class IdServiceClient:
                 raise Exception("Unable to use tornado as tornado is not installed")
             self._client = tornado.httpclient.AsyncHTTPClient()
         else:
-            #self._client = DgasHTTPClient()
             raise NotImplementedError
 
     async def _fetch(self, path, method, body=None, **kwargs):
