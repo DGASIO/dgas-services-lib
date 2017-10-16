@@ -1,5 +1,5 @@
-from .base import AsyncHandlerTest
-from .database import requires_database
+from dgas.test.base import AsyncHandlerTest
+from dgas.test.database import requires_database
 
 from dgas.handlers import BaseHandler
 from dgas.database import DatabaseMixin

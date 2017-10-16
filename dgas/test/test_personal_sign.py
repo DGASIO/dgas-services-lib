@@ -1,6 +1,5 @@
 import unittest
 from dgas.ethereum.utils import personal_ecrecover, data_decoder, personal_sign
-from ethereum import utils
 
 TEST_PRIVATE_KEY = b'W\xe5\xa7B\x1f\x01uj!+DX_\x8b~\xd1\x7f>JN9}\x9a\x1b\xea\xd9?\x80m\xb5\x1dH'
 TEST_ADDRESS = "0x22928db3e4f4dd08200e1a3d4f9bfb65296cecd1"

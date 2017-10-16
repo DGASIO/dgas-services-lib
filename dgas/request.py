@@ -4,8 +4,8 @@ from ethereum.utils import sha3
 import base64
 import json
 
-from .ethereum.utils import sign_payload
-from .utils import str_types, parse_int
+from dgas.ethereum.utils import sign_payload
+from dgas.utils import str_types, parse_int
 
 TOSHI_SIGNATURE_DATA_STRING = "{VERB}\n{PATH}\n{TIMESTAMP}\n{HASH}"
 

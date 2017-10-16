@@ -1,8 +1,9 @@
 import asyncio
 import os
 import signal
-import redis
 import testing.redis
+from dgas.config import config
+from dgas.redis import set_redis_connection, prepare_redis
 
 # adjust the defaul settings to allow unixsocket and requirepass settings
 class RedisServer(testing.redis.RedisServer):
@@ -48,29 +49,14 @@ def requires_redis(func=None, pass_redis=None):
                 'loglevel': 'warning'  # suppress unnecessary messages
             })
 
-            self._app.config['redis'] = config = redis_server.dsn(db=1)  # use db=1 to test clients ability to switch database
-
-            if 'unix_socket_path' in config:
-                self._app.redis_connection_pool = redis.ConnectionPool(
-                    connection_class=redis.connection.UnixDomainSocketConnection,
-                    decode_responses=True,
-                    password=config['password'] if 'password' in config else None,
-                    path=config['unix_socket_path'],
-                    db=config['db'])
-            else:
-                self._app.redis_connection_pool = redis.ConnectionPool(
-                    decode_responses=True,
-                    password=config['password'] if 'password' in config else None,
-                    host=config['host'],
-                    port=config['port'],
-                    db=config['db'])
-
-            # if the app has a `task_listener`, adjust it's config for the test
-            if hasattr(self._app, 'task_listener'):
-                await self._app.task_listener.stop_task_listener()
-                await self._app.task_listener.start_task_listener()
-
-            self.redis = redis.StrictRedis(connection_pool=self._app.redis_connection_pool)
+            redis_config = redis_server.dsn(db=1)
+            config['redis'] = {
+                'url': redis_config['unix_socket_path'],
+                'password': redis_config['password'],
+                'db': str(redis_config['db'])
+            }
+            set_redis_connection(None)
+            self.redis = await prepare_redis()
 
             if pass_redis:
                 kwargs['redis_server' if pass_redis is True else pass_redis] = redis_server
@@ -80,11 +66,10 @@ def requires_redis(func=None, pass_redis=None):
                 if asyncio.iscoroutine(f):
                     await f
             finally:
-
-                if hasattr(self._app, 'task_listener'):
-                    await self._app.task_listener.stop_task_listener()
-
+                self.redis.close()
+                await self.redis.wait_closed()
                 redis_server.stop()
+                del config['redis']
 
         return wrapper
 

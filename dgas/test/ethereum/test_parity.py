@@ -2,6 +2,7 @@ import asyncio
 
 from dgas.test.base import AsyncHandlerTest
 from tornado.testing import gen_test
+from dgas.config import config
 
 from dgas.ethereum.utils import prepare_ethereum_jsonrpc_client
 
@@ -21,7 +22,7 @@ class FaucetTest(FaucetMixin, AsyncHandlerTest):
 
         p1 = ParityServer()
         # set the app url so the faucet mixin uses p1
-        self._app.config['ethereum'] = {'url': p1.dsn()['url']}
+        config['ethereum'] = {'url': p1.dsn()['url']}
 
         p2 = ParityServer(bootnodes=p1.dsn()['node'])
 

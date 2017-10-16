@@ -1,4 +1,4 @@
-from .base import AsyncHandlerTest
+from dgas.test.base import AsyncHandlerTest
 
 from dgas.handlers import BaseHandler
 from tornado.testing import gen_test

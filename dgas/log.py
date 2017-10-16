@@ -3,6 +3,9 @@ import logging
 import tornado.httpclient
 import urllib
 
+from dgas.config import config
+from tornado.log import app_log, access_log, gen_log
+
 logging.basicConfig()
 log = logging.getLogger("dgas.log")
 
@@ -123,3 +126,20 @@ def log_unhandled_exceptions(func=None, logger=log, message="Unhandled exception
         return wrap(func)
     else:
         return wrap
+
+
+if 'logging' in config:
+    if 'slack_webhook_url' in config['logging']:
+        log.addHandler(SlackLogHandler(config['logging'].get('slack_log_username', None),
+                                       {'default': config['logging']['slack_webhook_url']},
+                                       level=config['logging'].get('slack_log_level', None)))
+    if 'level' in config['logging']:
+        level = getattr(logging, config['logging']['level'].upper(), None)
+        if level:
+            log.setLevel(level)
+        else:
+            log.warning("log level is set in config but does not match one of `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`")
+
+configure_logger(app_log)
+configure_logger(gen_log)
+configure_logger(access_log)

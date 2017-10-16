@@ -11,6 +11,7 @@ import re
 from py_ecc.secp256k1 import privtopub
 from ethereum.utils import encode_int32
 
+from dgas.config import config
 from tornado.websocket import websocket_connect
 
 from testing.common.database import (
@@ -995,7 +996,7 @@ def requires_geth(func=None, pass_server=False, pass_ethminer=False, use_ethmine
             else:
                 ethminer = None
 
-            self._app.config['ethereum'] = geth.dsn()
+            config['ethereum'] = geth.dsn()
 
             if pass_server:
                 if isinstance(pass_server, str):
@@ -1016,6 +1017,7 @@ def requires_geth(func=None, pass_server=False, pass_ethminer=False, use_ethmine
                 if ethminer:
                     ethminer.stop()
                 geth.stop()
+                del config['ethereum']
 
         return wrapper
 

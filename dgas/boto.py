@@ -1,5 +1,6 @@
 import asyncio
 import aiobotocore
+from dgas.config import config
 
 class BotoContext:
 
@@ -11,9 +12,9 @@ class BotoContext:
                 aiobotocore.get_session(loop=asyncio.get_event_loop())
         self._session = handler.application._botosession
         self._client = None
-        self._config = {k: v for k, v in handler.application.config['s3'].items() if k != 'bucket_name'}
-        if 'bucket_name' in handler.application.config['s3']:
-            self._default_bucket = handler.application.config['s3']['bucket_name']
+        self._config = {k: v for k, v in config['s3'].items() if k != 'bucket_name'}
+        if 'bucket_name' in config['s3']:
+            self._default_bucket = config['s3']['bucket_name']
         else:
             self._default_bucket = None
 

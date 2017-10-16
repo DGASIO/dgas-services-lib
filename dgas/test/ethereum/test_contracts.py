@@ -1,14 +1,14 @@
 import os
 import unittest
 
-from ..base import AsyncHandlerTest
+from dgas.test.base import AsyncHandlerTest
 from tornado.testing import gen_test
 from testing.common.database import get_path_of
 
 from dgas.ethereum.contract import Contract
 
-from .parity import requires_parity
-from .faucet import FaucetMixin, FAUCET_PRIVATE_KEY
+from dgas.test.ethereum.parity import requires_parity
+from dgas.test.ethereum.faucet import FaucetMixin, FAUCET_PRIVATE_KEY
 
 # from https://solidity.readthedocs.io/en/latest/solidity-by-example.html
 VOTER_CONTRACT_SOURCECODE = """
@@ -111,8 +111,6 @@ class ContractTest(FaucetMixin, AsyncHandlerTest):
     @requires_parity(pass_parity='node')
     async def test_deploy_contract(self, *, node):
 
-        os.environ['ETHEREUM_NODE_URL'] = node.dsn()['url']
-
         sourcecode = b"contract greeter{string greeting;function greeter(string _greeting) public{greeting=_greeting;}function greet() constant returns (string){return greeting;}}"
         contract_name = 'greeter'
         constructor_data = [b'hello world!']
@@ -137,8 +135,6 @@ class ContractTest(FaucetMixin, AsyncHandlerTest):
     @gen_test(timeout=60)
     @requires_parity(pass_parity='node')
     async def test_complex_contract(self, *, node):
-
-        os.environ['ETHEREUM_NODE_URL'] = node.dsn()['url']
 
         sourcecode = VOTER_CONTRACT_SOURCECODE.encode('utf-8')
         contract_name = 'Ballot'

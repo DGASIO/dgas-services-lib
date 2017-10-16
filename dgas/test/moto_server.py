@@ -3,6 +3,7 @@ import os
 import urllib.request
 import urllib.error
 import aiobotocore
+from dgas.config import config
 from dgas.boto import BotoContext
 
 from testing.common.database import (
@@ -55,11 +56,11 @@ def requires_moto(func=None, pass_moto_server=False):
 
             moto = MotoServer()
 
-            self._app.config['s3'] = moto.dsn()
+            config['s3'] = moto.dsn()
             session = aiobotocore.get_session(loop=asyncio.get_event_loop())
             dsn = moto.dsn()
             service_name = 's3'
-            self._app.config['s3']['bucket_name'] = bucket = 'testing-bucket-1'
+            config['s3']['bucket_name'] = bucket = 'testing-bucket-1'
             async with session.create_client(service_name, **dsn) as client:
                 await asyncio.ensure_future(client.create_bucket(Bucket=bucket, ACL='public-read'))
 
@@ -72,6 +73,7 @@ def requires_moto(func=None, pass_moto_server=False):
                     await f
             finally:
                 moto.stop()
+                del config['s3']
 
         return wrapper
 
@@ -87,9 +89,9 @@ class BotoTestContext(BotoContext):
                 aiobotocore.get_session(loop=asyncio.get_event_loop())
         self._session = handler._app._botosession
         self._client = None
-        self._config = {k: v for k, v in handler._app.config['s3'].items() if k != 'bucket_name'}
-        if 'bucket_name' in handler._app.config['s3']:
-            self._default_bucket = handler._app.config['s3']['bucket_name']
+        self._config = {k: v for k, v in config['s3'].items() if k != 'bucket_name'}
+        if 'bucket_name' in config['s3']:
+            self._default_bucket = config['s3']['bucket_name']
         else:
             self._default_bucket = None
 

@@ -1,5 +1,6 @@
 import asyncio
 import rlp
+from dgas.config import config
 from ethereum.transactions import Transaction
 from dgas.jsonrpc.client import JsonRPCClient
 from dgas.ethereum.utils import data_decoder, data_encoder, private_key_to_address
@@ -19,7 +20,7 @@ class FaucetMixin:
             from_private_key = data_decoder(from_private_key)
         from_address = private_key_to_address(from_private_key)
 
-        ethclient = JsonRPCClient(self._app.config['ethereum']['url'])
+        ethclient = JsonRPCClient(config['ethereum']['url'])
 
         to = data_decoder(to)
         if len(to) not in (20, 0):
@@ -62,7 +63,7 @@ class FaucetMixin:
             from_private_key = data_decoder(from_private_key)
         from_address = private_key_to_address(from_private_key)
 
-        ethclient = JsonRPCClient(self._app.config['ethereum']['url'])
+        ethclient = JsonRPCClient(config['ethereum']['url'])
 
         nonce = await ethclient.eth_getTransactionCount(from_address)
         balance = await ethclient.eth_getBalance(from_address)

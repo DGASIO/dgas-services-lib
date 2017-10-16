@@ -1,8 +1,14 @@
+import sys
 from setuptools import setup
+
+# verify python version
+if sys.version_info[:2] < (3, 5):
+    print("Requires python version 3.5 or greater")
+    sys.exit(1)
 
 setup(
     name='dgas-services',
-    version='0.0.1',
+    version='0.0.2',
     author='Tristan King',
     author_email='mars.king@gmail.com',
     packages=['dgas'],
@@ -12,7 +18,7 @@ setup(
     setup_requires=['pytest-runner'],
     install_requires=[
         'regex',
-        'tornado==5.0.0'
+        'tornado==5.0.1'
     ],
     dependency_links=[
     ],

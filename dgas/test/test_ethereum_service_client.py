@@ -3,7 +3,7 @@ import json
 
 from multiprocessing import Process
 
-from .utils import get_unused_port
+from dgas.test.utils import get_unused_port
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 

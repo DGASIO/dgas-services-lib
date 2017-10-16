@@ -4,7 +4,7 @@ class JsonRPCError(Exception):
         self.request_id = request_id
         self.code = code
         self.message = message
-        self.data = data
+        self._data = data
         self.is_notification = is_notification
 
     def format(self, request=None):
@@ -21,10 +21,16 @@ class JsonRPCError(Exception):
             "error": {
                 "code": self.code,
                 "message": self.message,
-                "data": self.data,
+                "data": self._data,
             },
             "id": self.request_id
         }
+
+    @property
+    def data(self):
+        if self._data:
+            return self._data
+        return {'message': self.message}
 
     def __repr__(self):
         return "Json RPC Error ({}): {}".format(self.code, self.message)

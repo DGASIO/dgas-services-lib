@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import datetime
 import os
 import regex
@@ -8,10 +9,11 @@ import tornado.web
 import traceback
 import email.utils
 
-from .utils import validate_signature, validate_address, parse_int
+from dgas.config import config
+from dgas.utils import validate_signature, validate_address, parse_int
 try:
-    from .request import generate_request_signature_data_string
-    from .ethereum.utils import data_decoder, ecrecover
+    from dgas.request import generate_request_signature_data_string
+    from dgas.ethereum.utils import data_decoder, ecrecover
     ETHEREUM_SUPPORTED = True
 except ModuleNotFoundError as ex:
     if ex.name == 'ethereum':
@@ -19,8 +21,8 @@ except ModuleNotFoundError as ex:
     else:
         raise
 
-from .errors import JSONHTTPError
-from .log import log
+from dgas.errors import JSONHTTPError
+from dgas.log import log
 from json import JSONDecodeError
 
 DEFAULT_JSON_ARGUMENT = object()
@@ -189,8 +191,8 @@ class BaseHandler(JsonBodyMixin, tornado.web.RequestHandler):
             proto = self.request.headers['X-Forwarded-Proto']
         else:
             proto = self.request.protocol
-        if proto != 'https' and 'enforce_https' in self.application.config['general']:
-            mode = self.application.config['general']['enforce_https']
+        if proto != 'https' and 'enforce_https' in config['general']:
+            mode = config['general']['enforce_https']
             if mode == 'reject':
                 self.set_status(404)
                 self.finish()
@@ -212,13 +214,13 @@ class BaseHandler(JsonBodyMixin, tornado.web.RequestHandler):
                 elif exc_value.code is not None:
                     rval['payload']['code'] = exc_value.code
             # if we're in debug mode, add the exception data to the response
-            if self.application.config['general'].getboolean('debug'):
+            if config['general'].getboolean('debug'):
                 rval['exc_info'] = traceback.format_exception(*kwargs["exc_info"])
         log.error(rval)
         self.write(rval)
 
     def run_in_executor(self, func, *args):
-        return self.application.asyncio_loop.run_in_executor(self.application.executor, func, *args)
+        return asyncio.get_event_loop().run_in_executor(self.application.executor, func, *args)
 
 class GenerateTimestamp(BaseHandler):
 

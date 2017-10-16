@@ -1,8 +1,9 @@
 import asyncio
 import aiobotocore
 
-from .base import AsyncHandlerTest
+from dgas.test.base import AsyncHandlerTest
 
+from dgas.config import config
 from dgas.test.moto_server import requires_moto
 from tornado.testing import gen_test
 
@@ -18,7 +19,7 @@ class MotoServerTest(AsyncHandlerTest):
 
         key = 'test-key-1'
         dsn = moto_server.dsn()
-        bucket = self._app.config['s3']['bucket_name']
+        bucket = config['s3']['bucket_name']
         data = b'\x01' * 1024
 
         session = aiobotocore.get_session(loop=asyncio.get_event_loop())

@@ -6,6 +6,7 @@ import subprocess
 import urllib.request
 import tornado.escape
 import re
+from dgas.config import config
 
 from py_ecc.secp256k1 import privtopub
 from ethereum.utils import encode_int32
@@ -232,7 +233,7 @@ def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=Fal
             ethminer = EthMiner(jsonrpc_url=parity.dsn()['url'],
                                 debug=debug_ethminer)
 
-            self._app.config['ethereum'] = parity.dsn()
+            config['ethereum'] = parity.dsn()
 
             if pass_args:
                 kwargs['parity'] = parity
@@ -255,6 +256,7 @@ def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=Fal
             finally:
                 ethminer.stop()
                 parity.stop()
+                del config['ethereum']
 
         return wrapper
 

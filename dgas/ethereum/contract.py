@@ -9,8 +9,15 @@ import time
 from tornado.escape import json_decode
 from ethereum.transactions import Transaction
 
-from .utils import data_decoder, data_encoder, private_key_to_address
-from ..jsonrpc.client import JsonRPCClient
+from dgas.config import config
+from dgas.ethereum.utils import data_decoder, data_encoder, private_key_to_address
+from dgas.jsonrpc.client import JsonRPCClient
+
+def get_url():
+    ethurl = config['ethereum']['url'] if 'ethereum' in config else os.environ.get('ETHEREUM_NODE_URL')
+    if not ethurl:
+        raise Exception("requires 'ETHEREUM_NODE_URL' environment variable to be set")
+    return ethurl
 
 def fix_address_decoding(decoded, types):
     """ethereum library result decoding doesn't add 0x to addresses
@@ -73,9 +80,7 @@ class ContractMethod:
             else:
                 validated_args.append(arg)
 
-        ethurl = os.environ.get('ETHEREUM_NODE_URL')
-        if not ethurl:
-            raise Exception("requires 'ETHEREUM_NODE_URL' environment variable to be set")
+        ethurl = get_url()
 
         ethclient = JsonRPCClient(ethurl)
 
@@ -178,9 +183,7 @@ class Contract:
                                wait_for_confirmation=True):
 
         if deploy:
-            ethurl = os.environ.get('ETHEREUM_NODE_URL')
-            if not ethurl:
-                raise Exception("requires 'ETHEREUM_NODE_URL' environment variable to be set")
+            ethurl = get_url()
 
             if address is None and deployer_private_key is None:
                 raise TypeError("requires either address or deployer_private_key")

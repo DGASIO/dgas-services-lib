@@ -1,7 +1,7 @@
-from ..base import AsyncHandlerTest
+from dgas.test.base import AsyncHandlerTest
 from tornado.testing import gen_test
 
-from .geth import requires_geth, geth_websocket_connect
+from dgas.test.ethereum.geth import requires_geth, geth_websocket_connect
 
 class GethTest(AsyncHandlerTest):
 

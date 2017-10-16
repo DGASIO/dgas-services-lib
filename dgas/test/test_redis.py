@@ -1,5 +1,5 @@
-from .base import AsyncHandlerTest
-from .redis import requires_redis
+from dgas.test.base import AsyncHandlerTest
+from dgas.test.redis import requires_redis
 
 from dgas.handlers import BaseHandler
 from dgas.redis import RedisMixin
@@ -7,12 +7,12 @@ from tornado.testing import gen_test
 
 class Handler(RedisMixin, BaseHandler):
 
-    def get(self):
+    async def get(self):
 
         key = self.get_query_argument('key')
         value = self.get_query_argument('value')
 
-        self.redis.set(key, value)
+        await self.redis.set(key, value)
         self.set_status(204)
 
 class RedisTest(AsyncHandlerTest):
@@ -25,7 +25,7 @@ class RedisTest(AsyncHandlerTest):
     async def test_redis_connection(self, *, redis_server):
 
         await self.fetch('/?key=TESTKEY&value=1')
-        self.assertEqual(self.redis.get("TESTKEY"), '1')
+        self.assertEqual(await self.redis.get("TESTKEY"), b'1')
 
         # test pause and restart
         redis_server.pause()
@@ -37,4 +37,4 @@ class RedisTest(AsyncHandlerTest):
         redis_server.start()
 
         await self.fetch('/?key=TESTKEY&value=3')
-        self.assertEqual(self.redis.get("TESTKEY"), '3')
+        self.assertEqual(await self.redis.get("TESTKEY"), b'3')

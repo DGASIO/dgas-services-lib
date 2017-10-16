@@ -1,12 +1,11 @@
 import binascii
 import regex
-from ..jsonrpc.client import JsonRPCClient
+from dgas.jsonrpc.client import JsonRPCClient
 from ethereum.utils import (
     privtoaddr, bytearray_to_bytestr, sha3, safe_ord,
     big_endian_to_int, int_to_32bytearray, zpad,
     ecrecover_to_pub, ecsign)
 from ethereum.abi import event_id, process_type, _canonical_type, decode_abi, decode_single
-from ..utils import validate_hex_string
 
 def data_decoder(data):
     """Decode `data` representing unformatted data."""

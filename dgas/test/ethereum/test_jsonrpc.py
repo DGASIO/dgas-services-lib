@@ -1,9 +1,9 @@
-from ..base import AsyncHandlerTest
+from dgas.test.base import AsyncHandlerTest
 from dgas.handlers import BaseHandler
 from dgas.ethereum import EthereumMixin
 from tornado.testing import gen_test
 
-from .parity import requires_parity, FAUCET_ADDRESS
+from dgas.test.ethereum.parity import requires_parity, FAUCET_ADDRESS
 
 class Handler(EthereumMixin, BaseHandler):
 

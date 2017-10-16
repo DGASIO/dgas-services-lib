@@ -2,8 +2,9 @@ import asyncio
 import asyncpg
 import os
 from collections import ItemsView
-from .errors import DatabaseError
-from .log import log
+from dgas.config import config
+from dgas.errors import DatabaseError
+from dgas.log import log
 
 if hasattr(asyncpg.pool.Pool, '_acquire_impl'):
     # pre 0.12.0 version
@@ -67,18 +68,37 @@ def create_pool(dsn=None, *,
                     max_queries=max_queries, loop=loop, setup=setup,
                     **connect_kwargs)
 
-async def prepare_database(db_config, handle_migration=True):
+def get_database_pool():
+    assert _global_database_pool is not None, "database not prepared before use"
+    return _global_database_pool
+
+def set_database_pool(connection):
+    global _global_database_pool
+    _global_database_pool = connection
+
+_global_database_pool = None
+
+async def _prepare_global_pool():
+    global _global_database_pool
+    if _global_database_pool is None:
+        _global_database_pool = await create_pool(**config['database'])
+    return _global_database_pool
+
+async def prepare_database(config=None, handle_migration=None):
     """If handle_migration is False, will instead wait until the database's
     version matches the expected"""
 
-    connection_pool = await create_pool(**db_config)
-    async with connection_pool.acquire() as con:
-        if handle_migration:
+    if config is None:
+        pool = await _prepare_global_pool()
+    else:
+        pool = await create_pool(**config)
+    async with pool.acquire() as con:
+        if handle_migration is True or (config is None and handle_migration is None):
             await create_tables(con)
         else:
             await wait_for_migration(con)
 
-    return connection_pool
+    return pool
 
 async def create_tables(con):
 
@@ -335,5 +355,5 @@ class DatabaseMixin:
     @property
     def db(self):
         if not hasattr(self, '_dbcontext'):
-            self._dbcontext = HandlerDatabasePoolContext(self.application.connection_pool)
+            self._dbcontext = HandlerDatabasePoolContext(get_database_pool())
         return self._dbcontext

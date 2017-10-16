@@ -1,5 +1,4 @@
 import asyncio
-import configparser
 import logging
 import tornado.escape
 import tornado.httputil
@@ -9,7 +8,7 @@ import tornado.testing
 import time
 import warnings
 
-from tornado.platform.asyncio import to_asyncio_future, AsyncIOLoop
+from dgas.config import config
 
 from dgas.jsonrpc.errors import JsonRPCError
 from dgas.ethereum.utils import private_key_to_address
@@ -127,7 +126,7 @@ class DgasWebSocketJsonRPCClient:
         f = self.con.read_message()
         if timeout:
             try:
-                result = await asyncio.wait_for(to_asyncio_future(f), timeout)
+                result = await asyncio.wait_for(f, timeout)
             except asyncio.TimeoutError as e:
                 # reset the connection's read state
                 self.con.read_future = None
@@ -147,27 +146,20 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
     def log(self):
         return logging.getLogger(self.__class__.__name__)
 
-    def get_new_ioloop(self):
-        io_loop = AsyncIOLoop()
-        asyncio.set_event_loop(io_loop.asyncio_loop)
-        return io_loop
-
     def setUp(self, extraconf=None):
         # TODO: re-enable this and figure out if any of the warnings matter
         warnings.simplefilter("ignore")
-        self._config = configparser.ConfigParser()
         conf = {
             'general': {'debug': True},
         }
         if extraconf:
             conf.update(extraconf)
-        self._config.read_dict(conf)
+        config._push()
+        config.read_dict(conf)
         super(AsyncHandlerTest, self).setUp()
 
     def get_app(self):
-        app = self.APPLICATION_CLASS(self.get_urls(), config=self._config, autoreload=False)
-        # manually add asyncio_loop since process_config isn't called in tests
-        app.asyncio_loop = asyncio.get_event_loop()
+        app = self.APPLICATION_CLASS(self.get_urls(), autoreload=False)
         if app.mixpanel_instance is None:
             app.mixpanel_instance = MockMixpanel()
         return app
@@ -182,6 +174,7 @@ class AsyncHandlerTest(tornado.testing.AsyncHTTPTestCase):
 
     def tearDown(self):
         super(AsyncHandlerTest, self).tearDown()
+        config._pop()
 
     def fetch(self, req, **kwargs):
         headers = kwargs.setdefault('headers', {})
