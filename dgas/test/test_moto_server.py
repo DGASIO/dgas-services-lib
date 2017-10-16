@@ -18,7 +18,7 @@ class MotoServerTest(AsyncHandlerTest):
 
         key = 'test-key-1'
         dsn = moto_server.dsn()
-        bucket = self._app.config['s3']['bucket']
+        bucket = self._app.config['s3']['bucket_name']
         data = b'\x01' * 1024
 
         session = aiobotocore.get_session(loop=asyncio.get_event_loop())
