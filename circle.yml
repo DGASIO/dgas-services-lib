@@ -10,6 +10,7 @@ dependencies:
   cache_directories:
     - ~/.ethash
   pre:
+    - pip install --upgrade pip
     - sudo apt-get install -y software-properties-common
     - sudo add-apt-repository -y ppa:ethereum/ethereum
     - sudo apt-get update
@@ -17,6 +18,7 @@ dependencies:
     - if [[ ! -d ~/.ethash ]]; then ethminer -D 0; fi
     - wget http://d1h4xl4cr1h0mo.cloudfront.net/v1.9.5/x86_64-unknown-linux-gnu/parity_1.9.5_ubuntu_amd64.deb
     - sudo dpkg -i parity_1.9.5_ubuntu_amd64.deb
+    - pip install moto[server]==1.2.0
   post:
     - npm install -g aglio
 
