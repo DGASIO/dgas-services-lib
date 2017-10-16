@@ -1,8 +1,10 @@
 import binascii
 import regex
 from ..jsonrpc.client import JsonRPCClient
-from secp256k1 import PrivateKey, PublicKey, ALL_FLAGS
-from ethereum.utils import bytearray_to_bytestr, sha3, safe_ord, big_endian_to_int, int_to_32bytearray, zpad
+from ethereum.utils import (
+    privtoaddr, bytearray_to_bytestr, sha3, safe_ord,
+    big_endian_to_int, int_to_32bytearray, zpad,
+    ecrecover_to_pub, ecsign)
 from ethereum.abi import event_id, process_type, _canonical_type, decode_abi, decode_single
 from ..utils import validate_hex_string
 
@@ -35,7 +37,7 @@ def private_key_to_address(private_key):
     if isinstance(private_key, str):
         private_key = data_decoder(private_key)
 
-    return data_encoder(sha3(PrivateKey(private_key).pubkey.serialize(False)[1:])[12:])
+    return data_encoder(privtoaddr(private_key))
 
 
 def prepare_ethereum_jsonrpc_client(config):
@@ -77,23 +79,12 @@ def ecrecover(msg, signature, address=None):
         else:
             return None
 
-    # check if ethereum signature, and adjust the recovery id accordingly
-    if v == 27 or v == 28:
-        v -= 27
+    if v == 0 or v == 1:
+        v += 27
 
-    pk = PublicKey(flags=ALL_FLAGS)
-    pk.public_key = pk.ecdsa_recover(
-        rawhash,
-        pk.ecdsa_recoverable_deserialize(
-            zpad(bytearray_to_bytestr(int_to_32bytearray(r)), 32) +
-            zpad(bytearray_to_bytestr(int_to_32bytearray(s)), 32),
-            v
-        ),
-        raw=True
-    )
-    pub = pk.serialize(compressed=False)
+    pub = ecrecover_to_pub(rawhash, v, r, s)
 
-    recaddr = data_encoder(sha3(pub[1:])[-20:])
+    recaddr = data_encoder(sha3(pub)[-20:])
     if address:
         if not address.startswith("0x"):
             recaddr = recaddr[2:]
@@ -109,11 +100,10 @@ def sign_payload(private_key, payload):
 
     rawhash = sha3(payload)
 
-    pk = PrivateKey(private_key, raw=True)
-    signature = pk.ecdsa_recoverable_serialize(
-        pk.ecdsa_sign_recoverable(rawhash, raw=True)
-    )
-    signature = signature[0] + bytearray_to_bytestr([signature[1]])
+    v, r, s = ecsign(rawhash, private_key)
+    signature = zpad(bytearray_to_bytestr(int_to_32bytearray(r)), 32) + \
+                zpad(bytearray_to_bytestr(int_to_32bytearray(s)), 32) + \
+                bytearray_to_bytestr([v])
 
     return data_encoder(signature)
 
@@ -124,11 +114,10 @@ def personal_sign(private_key, message):
 
     rawhash = sha3("\x19Ethereum Signed Message:\n{}{}".format(len(message), message))
 
-    pk = PrivateKey(private_key, raw=True)
-    signature = pk.ecdsa_recoverable_serialize(
-        pk.ecdsa_sign_recoverable(rawhash, raw=True)
-    )
-    signature = signature[0] + bytearray_to_bytestr([signature[1] + 27])
+    v, r, s = ecsign(rawhash, private_key)
+    signature = zpad(bytearray_to_bytestr(int_to_32bytearray(r)), 32) + \
+                zpad(bytearray_to_bytestr(int_to_32bytearray(s)), 32) + \
+                bytearray_to_bytestr([v])
 
     return data_encoder(signature)
 

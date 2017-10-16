@@ -19,7 +19,7 @@ setup(
     extras_require={
         'ethereum': [
             'ethereum==2.3.0',
-            'secp256k1'
+            'coincurve'
         ]
     },
     tests_require=[
