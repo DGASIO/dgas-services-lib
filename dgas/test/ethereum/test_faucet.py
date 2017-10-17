@@ -39,6 +39,7 @@ class FaucetTest(FaucetMixin, AsyncHandlerTest):
         resp = await self.fetch('/{}'.format(addr))
         self.assertEqual(resp.body.decode('utf-8'), str(val))
 
+    @unittest.skipIf(get_path_of("geth") is None, "couldn't find solc compiler, skipping test")
     @gen_test(timeout=30)
     @requires_geth
     async def test_geth_faucet(self):
