@@ -30,6 +30,29 @@ jobs:
           paths:
             - cpp-ethereum
       - restore_cache:
+          key: v1-solc
+      - run:
+          name: Install solc
+          command: |
+            if [[ ! -d solidity ]]; then
+                git clone --recursive https://github.com/ethereum/solidity.git
+                cd solidity
+                git submodule update --init --recursive
+                ./scripts/install_deps.sh
+                mkdir -p build
+                cd build
+                cmake .. -DCMAKE_BUILD_TYPE="Release"
+                make -j2
+                cd ../..
+            fi
+            cd solidity/build
+            sudo make install
+            solc --version
+      - save_cache:
+          key: v1-solc
+          paths:
+            - solidity
+      - restore_cache:
           key: ethash
       - run:
           name: Generate ethash

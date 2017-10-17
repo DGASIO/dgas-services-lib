@@ -73,7 +73,7 @@ class ContractTest(FaucetMixin, AsyncHandlerTest):
         contract_name = 'greeter'
         constructor_args = [b'hello world!']
 
-        args = ['solc', '--combined-json', 'bin,abi', '--add-std'] # , source_fn]
+        args = ['solc', '--combined-json', 'bin,abi'] # , source_fn]
         #output = subprocess.check_output(args, stderr=subprocess.PIPE)
         process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, stderrdata = process.communicate(input=sourcecode)

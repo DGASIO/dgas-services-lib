@@ -190,7 +190,7 @@ class Contract:
             if address is None and not isinstance(constructor_data, (list, type(None))):
                 raise TypeError("must supply constructor_data as a list (hint: use [] if args should be empty)")
 
-        args = ['solc', '--combined-json', 'bin,abi', '--add-std']
+        args = ['solc', '--combined-json', 'bin,abi']
         if libraries:
             args.extend(['--libraries', ','.join(['{}:{}'.format(*library) for library in libraries])])
         if optimize:
