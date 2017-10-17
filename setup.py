@@ -36,7 +36,6 @@ setup(
         'testing.redis',
         'asyncpg',
         'mixpanel==4.3.2',
-        'redis',
         'msgpack-python',
         'aioredis==1.1.0',
         'botocore==1.8.21',
