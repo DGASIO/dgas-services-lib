@@ -96,6 +96,35 @@ contract Ballot {
 }
 """
 
+SIMPLE_TOKEN_CONTRACT = """
+pragma solidity ^0.4.8;
+
+contract SimpleToken {
+
+    uint256 constant MAX_UINT256 = 2**256 - 1;
+    mapping (address => uint256) balances;
+
+    function SimpleToken(uint8 _decimalUnits,
+                   string _tokenSymbol) {
+        balances[msg.sender] = MAX_UINT256;
+    }
+
+    function transfer(address _to, uint256 _value) returns (bool success) {
+        require(balances[msg.sender] >= _value);
+        balances[msg.sender] -= _value;
+        balances[_to] += _value;
+        Transfer(msg.sender, _to, _value);
+        return true;
+    }
+
+    function balanceOf(address _owner) constant returns (uint256 balance) {
+        return balances[_owner];
+    }
+
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+}
+"""
+
 def as_byte32(val):
     if isinstance(val, str):
         val = val.encode('utf-8')
@@ -105,6 +134,12 @@ class ContractTest(FaucetMixin, AsyncHandlerTest):
 
     def get_urls(self):
         return []
+
+    async def deploy_simple_token_contract(self):
+        sourcecode = SIMPLE_TOKEN_CONTRACT.encode('utf-8')
+        contract_name = "SimpleToken"
+        contract = await Contract.from_source_code(sourcecode, contract_name, constructor_data=[], deployer_private_key=FAUCET_PRIVATE_KEY)
+        return contract
 
     @unittest.skipIf(get_path_of("solc") is None, "couldn't find solc compiler, skipping test")
     @gen_test(timeout=60)
@@ -177,3 +212,31 @@ class ContractTest(FaucetMixin, AsyncHandlerTest):
         # print(bal1)
         # bal2 = await ethclient.eth_getBalance(voter3[1])
         # print(bal2)
+
+    @unittest.skipIf(get_path_of("solc") is None, "couldn't find solc compiler, skipping test")
+    @gen_test(timeout=60)
+    @requires_parity(pass_parity='node')
+    async def test_status_errors(self, *, node):
+
+        contract = await self.deploy_simple_token_contract()
+        holder1 = ("0xc505998dcc54a5b6424c69b615ef8a7b9ee9881b3a4596dd889ba626c5dd9f9f", "0x0100267048677a95cf91b487d9b65708c105dfe6")
+        holder2 = ("0xe17c72f9b49ea9bd7f1690d2b885da0abc5c1cf735306f7ecbcc611e6eb597ef", "0x0200d3013d64c48d1948f0bc8631056df5fc1e7e")
+
+        wei = 10 ** 18
+        await self.faucet(holder1[1], wei)
+        await self.faucet(holder2[1], wei)
+
+        await contract.transfer.set_sender(FAUCET_PRIVATE_KEY)(holder1[1], 1000)
+        await contract.transfer.set_sender(holder1[0])(holder2[1], 1000)
+
+        self.assertEqual(await contract.balanceOf(holder2[1]), 1000)
+        self.assertEqual(await contract.balanceOf(holder1[1]), 0)
+
+        try:
+            # try with forced gas
+            await contract.transfer.set_sender(holder1[0])(holder2[1], 1000, startgas=300000)
+        except Exception as e:
+            self.assertEqual(str(e), "Transaction status returned 0x0")
+            pass
+        else:
+            self.fail("expected error")

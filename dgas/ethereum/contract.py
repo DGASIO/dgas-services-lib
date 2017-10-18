@@ -147,13 +147,9 @@ class ContractMethod:
                         print("WARNING: 60 seconds have passed and transaction is not showing as a pending transaction")
                         raise Exception("Unexpected error waiting for transaction to complete")
                 else:
-                    # TODO: raise exception on error
-                    # print("=========================")
-                    # print(resp)
-                    # receipt = await ethclient.eth_getTransactionReceipt(tx_hash)
-                    # print("GAS for {}: Provided: {}, Estimated: {}, Used: {}".format(self.name, startgas, _startgas, int(receipt['gasUsed'][2:], 16)))
-                    # print("Estimated gas: {}".format(_startgas))
-                    # print("=========================")
+                    receipt = await ethclient.eth_getTransactionReceipt(tx_hash)
+                    if 'status' in receipt and receipt['status'] != "0x1":
+                        raise Exception("Transaction status returned {}".format(receipt['status']))
                     break
 
             # TODO: is it possible for non-const functions to have return types?
