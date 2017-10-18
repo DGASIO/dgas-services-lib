@@ -68,7 +68,7 @@ def requires_redis(func=None, pass_redis=None):
             finally:
                 self.redis.close()
                 await self.redis.wait_closed()
-                redis_server.stop()
+                redis_server.stop(_signal=signal.SIGKILL)
                 del config['redis']
 
         return wrapper

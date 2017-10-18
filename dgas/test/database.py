@@ -1,5 +1,6 @@
 import asyncio
 import testing.postgresql
+import signal
 from dgas.config import config
 from dgas.database import prepare_database, set_database_pool
 from dgas.log import log
@@ -52,7 +53,7 @@ def requires_database(func=None):
             finally:
                 await self.pool.close()
                 set_database_pool(None)
-                psql.stop()
+                psql.stop(_signal=signal.SIGKILL)
                 del config['database']
 
         return wrapper

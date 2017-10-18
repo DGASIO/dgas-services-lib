@@ -254,8 +254,9 @@ def requires_parity(func=None, difficulty=None, pass_args=False, pass_parity=Fal
                 if asyncio.iscoroutine(f):
                     await f
             finally:
-                ethminer.stop()
-                parity.stop()
+                # no need for graceful shutdown, and waiting takes a long time, JUST KILL IT!
+                ethminer.stop(_signal=signal.SIGKILL)
+                parity.stop(_signal=signal.SIGKILL)
                 del config['ethereum']
 
         return wrapper
