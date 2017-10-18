@@ -73,12 +73,12 @@ class JsonRPCClient:
                     body=tornado.escape.json_encode(data)
                 )
             except:
-                self.log.exception("Error in JsonRPCClient._fetch: retry {}".format(retries))
+                self.log.error("Error in JsonRPCClient._fetch ({}): retry {}".format(method, retries))
                 retries += 1
                 # give up after a "while"
-                if not self.should_retry or retries >= 1: # 600:
+                if not self.should_retry or retries >= 5:
                     raise
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.5)
             else:
                 break
 
