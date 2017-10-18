@@ -70,6 +70,7 @@ def setup_config():
                 config['database']['password'] = p.password
         else:
             config['database'] = {'dsn': os.environ['DATABASE_URL']}
+            config.set_from_os_environ('database', 'ssl', 'PGSQL_USE_SSL', '1')
 
     config.set_from_os_environ('database', 'max_size', 'MAX_DATABASE_CONNECTIONS')
     config.set_from_os_environ('database', 'min_size', 'MIN_DATABASE_CONNECTIONS')

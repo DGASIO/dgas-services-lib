@@ -1,6 +1,8 @@
 import asyncio
 import asyncpg
 import os
+import sys
+import ssl
 from collections import ItemsView
 from dgas.config import config
 from dgas.errors import DatabaseError
@@ -33,6 +35,9 @@ else:
                 else:
                     return con
 
+SSL_CTX = ssl.create_default_context()
+SSL_CTX.check_hostname = False
+SSL_CTX.verify_mode = ssl.CERT_NONE
 
 def create_pool(dsn=None, *,
                 min_size=10,
@@ -42,6 +47,7 @@ def create_pool(dsn=None, *,
                 setup=None,
                 loop=None,
                 init=None,
+                ssl=None,
                 connection_class=asyncpg.connection.Connection,
                 **connect_kwargs):
     try:
@@ -63,6 +69,10 @@ def create_pool(dsn=None, *,
         max_size = int(max_size)
     if min_size > max_size:
         min_size = max_size
+    if ssl:
+        if ssl is True:
+            ssl = SSL_CTX
+        connect_kwargs['ssl'] = ssl
     return SafePool(dsn,
                     min_size=min_size, max_size=max_size,
                     max_queries=max_queries, loop=loop, setup=setup,
@@ -81,7 +91,10 @@ _global_database_pool = None
 async def _prepare_global_pool():
     global _global_database_pool
     if _global_database_pool is None:
-        _global_database_pool = await create_pool(**config['database'])
+        dbconfig = dict(config['database'])
+        dbconfig.pop('ssl', None)
+        ssl = config['database'].getboolean('ssl')
+        _global_database_pool = await create_pool(ssl=ssl, **dbconfig)
     return _global_database_pool
 
 async def prepare_database(config=None, handle_migration=None):
@@ -221,7 +234,23 @@ class HandlerDatabasePoolContext():
     async def __aenter__(self):
         if self.connection is not None:
             raise DatabaseError("Connection already in progress")
-        self.connection = await self.pool.acquire(timeout=self.timeout)
+        try:
+            self.connection = await self.pool.acquire(timeout=self.timeout)
+        except asyncpg.exceptions.ConnectionDoesNotExistError:
+            log.exception("Error acquiring connection")
+            # attempt to recover the database connection
+            if self.pool is get_database_pool():
+                set_database_pool(None)
+                try:
+                    await self.pool.close()
+                    self.pool = await prepare_database(handle_migration=False)
+                    self.connection = await self.pool.acquire(timeout=self.timeout)
+                except:
+                    log.exception("Unable to recover global database pool")
+                    # fail hard in the hope that restarting the system will fix things
+                    sys.exit(1)
+            else:
+                raise
         self.transaction = self.connection.transaction()
         await self.transaction.start()
         return self

@@ -23,6 +23,7 @@ def requires_database(func=None):
             psql.start()
 
             config['database'] = psql.dsn()
+            config['database']['ssl'] = '0'
             set_database_pool(None)
             self.pool = await prepare_database()
 
